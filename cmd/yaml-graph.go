@@ -1,9 +1,12 @@
 package main
 
-import "github.com/mattfenwick/kube-utils/pkg/kubernetes"
+import (
+	"github.com/mattfenwick/kube-utils/pkg/kubernetes"
+	"os"
+)
 
 func main() {
-	path := "yaml-example-source.yaml"
+	path := os.Args[1]
 
 	//kubernetes.Run(path)
 	kubernetes.RunAnalyzeExample(path)
