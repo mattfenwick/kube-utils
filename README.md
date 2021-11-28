@@ -2,7 +2,7 @@
 
 ## Python
 
-[/pythong](./python)
+[/python](./python)
 
 ## Golang
 
