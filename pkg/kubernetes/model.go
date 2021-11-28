@@ -113,7 +113,7 @@ func (m *Model) Graph() *graph.Graph {
 					initPiece = " (init)"
 				}
 				containerNodeName := fmt.Sprintf("%s: %s/%s%s", kind, name, container.Name, initPiece)
-				yamlGraph.AddNode(containerNodeName)
+				yamlGraph.AddNode(containerNodeName, fmt.Sprintf(`label="%s%s"`, container.Name, initPiece))
 				yamlGraph.AddEdge(resourceName, containerNodeName)
 				for _, cm := range container.ConfigMaps {
 					yamlGraph.AddEdge(containerNodeName, "configmap: "+cm)
