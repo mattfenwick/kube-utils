@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"fmt"
 	"github.com/mattfenwick/kube-utils/pkg/graph"
+	"github.com/olekukonko/tablewriter"
+	"strings"
 )
 
 type Container struct {
@@ -24,16 +26,58 @@ type Model struct {
 	Pods       map[string]map[string]*PodSpec
 	Secrets    []string
 	ConfigMaps []string
+	Skipped    map[string][]string
+}
+
+func NewModel() *Model {
+	return &Model{
+		Pods:       map[string]map[string]*PodSpec{},
+		Secrets:    nil,
+		ConfigMaps: nil,
+		Skipped:    map[string][]string{},
+	}
+}
+
+func (m *Model) AddSkippedResource(kind string, name string) {
+	if _, ok := m.Skipped[kind]; !ok {
+		m.Skipped[kind] = []string{}
+	}
+	m.Skipped[kind] = append(m.Skipped[kind], name)
 }
 
 func (m *Model) AddPodWrapper(kind string, name string, spec *PodSpec) {
-	if m.Pods == nil {
-		m.Pods = map[string]map[string]*PodSpec{}
-	}
 	if _, ok := m.Pods[kind]; !ok {
 		m.Pods[kind] = map[string]*PodSpec{}
 	}
 	m.Pods[kind][name] = spec
+}
+
+func (m *Model) SecretConfigMapsUsages() (map[string][]string, map[string][]string) {
+	usedSecrets := map[string][]string{}
+	usedConfigMaps := map[string][]string{}
+	for kind, podSpecs := range m.Pods {
+		for resourceName, podSpec := range podSpecs {
+			for _, container := range podSpec.Containers {
+				for _, usedSecret := range container.Secrets {
+					usedSecrets[usedSecret] = append(usedSecrets[usedSecret], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
+				}
+				for _, usedConfigMap := range container.ConfigMaps {
+					usedConfigMaps[usedConfigMap] = append(usedSecrets[usedConfigMap], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
+				}
+			}
+		}
+	}
+	return usedSecrets, usedConfigMaps
+}
+
+func (m *Model) SecretUsages(name string) []string {
+	secretUsages, _ := m.SecretConfigMapsUsages()
+	return secretUsages[name]
+}
+
+func (m *Model) ConfigMapUsages(name string) []string {
+	_, configMapUsages := m.SecretConfigMapsUsages()
+	return configMapUsages[name]
 }
 
 func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetComparison) {
@@ -61,6 +105,107 @@ func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetC
 		}
 	}
 	return CompareKeySets(createdSecrets, usedSecrets), CompareKeySets(createdConfigMaps, usedConfigMaps)
+}
+
+//type Table struct {
+//	Title string
+//
+//}
+
+func (m *Model) Tables() { //[]*Table {
+	fmt.Println("secrets:")
+	m.SecretsTable()
+
+	fmt.Println("\nconfig maps:")
+	m.ConfigMapsTable()
+
+	for kind, resources := range m.Pods {
+		fmt.Printf("\nkind: %s\n", kind)
+		m.PodsTable(resources)
+	}
+
+	fmt.Println("\nskipped resources:")
+	m.SkippedResourcesTable()
+}
+
+func (m *Model) SkippedResourcesTable() {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"Kind", "Name"})
+	for kind, names := range m.Skipped {
+		for _, name := range names {
+			table.Append([]string{kind, name})
+		}
+	}
+	table.Render()
+	fmt.Printf("%s\n", tableString)
+}
+
+func (m *Model) PodsTable(resources map[string]*PodSpec) {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"Resource", "Container", "Secrets", "ConfigMaps", "Init"})
+	for resourceName, podSpec := range resources {
+		for _, container := range podSpec.Containers {
+			initString := "init"
+			if !container.IsInit {
+				initString = ""
+			}
+			table.Append([]string{resourceName, container.Name, strings.Join(container.Secrets, "\n"), strings.Join(container.ConfigMaps, "\n"), initString})
+		}
+	}
+	table.Render()
+	fmt.Printf("%s\n", tableString)
+}
+
+func (m *Model) SecretsTable() {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"Name", "Source", "Usages"})
+
+	secretsComparison, _ := m.GetUsedUnusedSecretsAndConfigMaps()
+	for secret := range secretsComparison.JustA {
+		table.Append([]string{secret, "chart", "(none)"})
+	}
+	for secret := range secretsComparison.Both {
+		table.Append([]string{secret, "chart", strings.Join(m.SecretUsages(secret), "\n")})
+	}
+	for secret := range secretsComparison.JustB {
+		table.Append([]string{secret, "unknown", strings.Join(m.SecretUsages(secret), "\n")})
+	}
+	table.Render()
+	fmt.Printf("%s\n", tableString)
+}
+
+func (m *Model) ConfigMapsTable() {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"Name", "Source", "Usages"})
+
+	_, configMapsComparison := m.GetUsedUnusedSecretsAndConfigMaps()
+	for configMap := range configMapsComparison.JustA {
+		table.Append([]string{configMap, "chart", "(none)"})
+	}
+	for configMap := range configMapsComparison.Both {
+		table.Append([]string{configMap, "chart", strings.Join(m.ConfigMapUsages(configMap), "\n")})
+	}
+	for configMap := range configMapsComparison.JustB {
+		table.Append([]string{configMap, "unknown", strings.Join(m.ConfigMapUsages(configMap), "\n")})
+	}
+	table.Render()
+	fmt.Printf("%s\n", tableString)
 }
 
 func (m *Model) Graph() *graph.Graph {

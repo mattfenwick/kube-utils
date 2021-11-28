@@ -24,7 +24,7 @@ func BounceMarshal(in interface{}, out interface{}) error {
 func RunAnalyzeExample(path string) {
 	objs, err := ParseManyFromFile(path)
 	DoOrDie(err)
-	model := &Model{}
+	model := NewModel()
 	for _, o := range objs {
 		if o == nil {
 			logrus.Infof("skipping nil\n")
@@ -32,7 +32,9 @@ func RunAnalyzeExample(path string) {
 		}
 		m := o.(map[string]interface{})
 		logrus.Infof("kind? %s\n", m["kind"])
-		switch m["kind"].(string) {
+		resourceName := m["metadata"].(map[string]interface{})["name"].(string)
+		kind := m["kind"].(string)
+		switch kind {
 		case "Deployment":
 			var dep *appsv1.Deployment
 			DoOrDie(BounceMarshal(o, &dep))
@@ -50,11 +52,11 @@ func RunAnalyzeExample(path string) {
 			DoOrDie(BounceMarshal(o, &job))
 			model.AddPodWrapper("CronJob", job.Name, AnalyzeCronJob(job))
 		case "Secret":
-			model.Secrets = append(model.Secrets, m["metadata"].(map[string]interface{})["name"].(string))
+			model.Secrets = append(model.Secrets, resourceName)
 		case "ConfigMap":
-			model.ConfigMaps = append(model.ConfigMaps, m["metadata"].(map[string]interface{})["name"].(string))
+			model.ConfigMaps = append(model.ConfigMaps, resourceName)
 		default:
-			logrus.Infof("skipping analysis of %s\n", m["kind"])
+			model.AddSkippedResource(kind, resourceName)
 		}
 	}
 
@@ -64,6 +66,8 @@ func RunAnalyzeExample(path string) {
 	logrus.Infof("%s\n", jsonBytes)
 
 	fmt.Printf("%s\n", model.Graph().RenderAsDot())
+
+	model.Tables()
 }
 
 func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, secrets map[string]string, containerSpec v1.Container) *Container {
