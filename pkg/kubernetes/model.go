@@ -4,14 +4,33 @@ import (
 	"fmt"
 	"github.com/mattfenwick/kube-utils/pkg/graph"
 	"github.com/olekukonko/tablewriter"
+	"sort"
 	"strings"
 )
 
 type Container struct {
 	IsInit     bool
 	Name       string
-	ConfigMaps []string
-	Secrets    []string
+	ConfigMaps map[string]bool
+	Secrets    map[string]bool
+}
+
+func (c *Container) SecretsSlice() []string {
+	var secrets []string
+	for secret := range c.Secrets {
+		secrets = append(secrets, secret)
+	}
+	sort.Strings(secrets)
+	return secrets
+}
+
+func (c *Container) ConfigMapsSlice() []string {
+	var cms []string
+	for cm := range c.ConfigMaps {
+		cms = append(cms, cm)
+	}
+	sort.Strings(cms)
+	return cms
 }
 
 type PodSpec struct {
@@ -58,10 +77,10 @@ func (m *Model) SecretConfigMapsUsages() (map[string][]string, map[string][]stri
 	for kind, podSpecs := range m.Pods {
 		for resourceName, podSpec := range podSpecs {
 			for _, container := range podSpec.Containers {
-				for _, usedSecret := range container.Secrets {
+				for usedSecret := range container.Secrets {
 					usedSecrets[usedSecret] = append(usedSecrets[usedSecret], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
 				}
-				for _, usedConfigMap := range container.ConfigMaps {
+				for usedConfigMap := range container.ConfigMaps {
 					usedConfigMaps[usedConfigMap] = append(usedSecrets[usedConfigMap], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
 				}
 			}
@@ -95,10 +114,10 @@ func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetC
 	for _, podSpecs := range m.Pods {
 		for _, podSpec := range podSpecs {
 			for _, container := range podSpec.Containers {
-				for _, usedSecret := range container.Secrets {
+				for usedSecret := range container.Secrets {
 					usedSecrets[usedSecret] = true
 				}
-				for _, usedConfigMap := range container.ConfigMaps {
+				for usedConfigMap := range container.ConfigMaps {
 					usedConfigMaps[usedConfigMap] = true
 				}
 			}
@@ -113,6 +132,9 @@ func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetC
 //}
 
 func (m *Model) Tables() { //[]*Table {
+	fmt.Println("\nskipped resources:")
+	m.SkippedResourcesTable()
+
 	fmt.Println("secrets:")
 	m.SecretsTable()
 
@@ -123,9 +145,6 @@ func (m *Model) Tables() { //[]*Table {
 		fmt.Printf("\nkind: %s\n", kind)
 		m.PodsTable(resources)
 	}
-
-	fmt.Println("\nskipped resources:")
-	m.SkippedResourcesTable()
 }
 
 func (m *Model) SkippedResourcesTable() {
@@ -157,7 +176,7 @@ func (m *Model) PodsTable(resources map[string]*PodSpec) {
 			if !container.IsInit {
 				initString = ""
 			}
-			table.Append([]string{resourceName, container.Name, strings.Join(container.Secrets, "\n"), strings.Join(container.ConfigMaps, "\n"), initString})
+			table.Append([]string{resourceName, container.Name, strings.Join(container.SecretsSlice(), "\n"), strings.Join(container.ConfigMapsSlice(), "\n"), initString})
 		}
 	}
 	table.Render()
@@ -260,10 +279,10 @@ func (m *Model) Graph() *graph.Graph {
 				containerNodeName := fmt.Sprintf("%s: %s/%s%s", kind, name, container.Name, initPiece)
 				yamlGraph.AddNode(containerNodeName, fmt.Sprintf(`label="%s%s"`, container.Name, initPiece))
 				yamlGraph.AddEdge(resourceName, containerNodeName)
-				for _, cm := range container.ConfigMaps {
+				for cm := range container.ConfigMaps {
 					yamlGraph.AddEdge(containerNodeName, "configmap: "+cm)
 				}
-				for _, secret := range container.Secrets {
+				for secret := range container.Secrets {
 					yamlGraph.AddEdge(containerNodeName, "secret: "+secret)
 				}
 			}

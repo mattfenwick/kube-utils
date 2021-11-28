@@ -1,8 +1,6 @@
 package kubernetes
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	goyaml "gopkg.in/yaml.v3"
@@ -31,9 +29,9 @@ func RunAnalyzeExample(path string) {
 			continue
 		}
 		m := o.(map[string]interface{})
-		logrus.Infof("kind? %s\n", m["kind"])
 		resourceName := m["metadata"].(map[string]interface{})["name"].(string)
 		kind := m["kind"].(string)
+		logrus.Infof("kind, name: %s, %s\n", kind, resourceName)
 		switch kind {
 		case "Deployment":
 			var dep *appsv1.Deployment
@@ -60,12 +58,7 @@ func RunAnalyzeExample(path string) {
 		}
 	}
 
-	logrus.Infof("%+v\n", model)
-	jsonBytes, err := json.MarshalIndent(model, "", "  ")
-	DoOrDie(err)
-	logrus.Infof("%s\n", jsonBytes)
-
-	fmt.Printf("%s\n", model.Graph().RenderAsDot())
+	//fmt.Printf("%s\n", model.Graph().RenderAsDot())
 
 	model.Tables()
 }
@@ -75,16 +68,36 @@ func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, sec
 		IsInit: isInitContainer,
 		Name:   containerSpec.Name,
 		// contSpec.Image,
-		ConfigMaps: nil,
-		Secrets:    nil,
+		ConfigMaps: map[string]bool{},
+		Secrets:    map[string]bool{},
 	}
 	for _, mount := range containerSpec.VolumeMounts {
 		if configMapName, ok := configMaps[mount.Name]; ok {
-			container.ConfigMaps = append(container.ConfigMaps, configMapName)
+			container.ConfigMaps[configMapName] = true
 		} else if secretName, ok := secrets[mount.Name]; ok {
-			container.Secrets = append(container.Secrets, secretName)
+			container.Secrets[secretName] = true
 		}
 	}
+
+	for _, envVar := range containerSpec.Env {
+		logrus.Warnf("env var? %+v\n", envVar)
+		if envVar.ValueFrom != nil {
+			if envVar.ValueFrom.ConfigMapKeyRef != nil {
+				container.ConfigMaps[envVar.ValueFrom.ConfigMapKeyRef.Name] = true
+			} else if envVar.ValueFrom.SecretKeyRef != nil {
+				container.Secrets[envVar.ValueFrom.SecretKeyRef.Name] = true
+			}
+		}
+	}
+	for _, envFrom := range containerSpec.EnvFrom {
+		logrus.Warnf("env from: %+v\n", envFrom)
+		if envFrom.ConfigMapRef != nil {
+			container.ConfigMaps[envFrom.ConfigMapRef.Name] = true
+		} else if envFrom.SecretRef != nil {
+			container.Secrets[envFrom.SecretRef.Name] = true
+		}
+	}
+
 	return container
 }
 
