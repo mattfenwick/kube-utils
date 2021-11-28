@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mattfenwick/kube-utils/pkg/kubernetes"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes"
 	"os"
 )
 

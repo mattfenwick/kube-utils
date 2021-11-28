@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
-	"github.com/mattfenwick/kube-utils/pkg/graph"
+	"github.com/mattfenwick/kube-utils/go/pkg/graph"
 	"github.com/olekukonko/tablewriter"
 	"sort"
 	"strings"
