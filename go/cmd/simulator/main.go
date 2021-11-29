@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
+	"github.com/sirupsen/logrus"
 	"os"
 )
 
@@ -22,5 +23,6 @@ func client() {
 	if len(os.Args) >= 3 {
 		serverAddress = os.Args[2]
 	}
+	logrus.Infof("server address: %s", serverAddress)
 	simulator.RunClient(serverAddress)
 }

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: client
-          command: ["/main", "client", "http://server-simulator:19999"]
+          command: ["/main", "client", "http://simulator-server:19999"]
           image: "localhost:5000/kube-utils/simulator:latest"
           imagePullPolicy: Always
           ports:

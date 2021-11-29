@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"net/http"
 )
 
@@ -28,11 +29,14 @@ type Server struct {
 }
 
 func (s *Server) StartScan(scan *StartScan) {
-	fmt.Printf("scan: %+v\n", scan.Data[:15])
+	logrus.Infof("scan: %s of %d\n", scan.Data[:15], len(scan.Data))
 }
 
 func (s *Server) FetchScanResults(scanId string) (*ScanResults, error) {
-	return nil, errors.Errorf("TODO")
+	return &ScanResults{
+		IsDone: false,
+		Data:   scanId + rand.String(40_000),
+	}, nil
 }
 
 func (s *Server) NotFound(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +107,7 @@ func SetupHTTPServer(responder Responder) {
 				responder.Error(w, r, err, 500)
 				return
 			}
+			w.Header().Set(http.CanonicalHeaderKey("content-type"), "application/json")
 			_, err = fmt.Fprint(w, string(bytes))
 			DoOrDie(err)
 		default:

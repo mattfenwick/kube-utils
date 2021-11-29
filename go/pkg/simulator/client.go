@@ -11,6 +11,8 @@ import (
 )
 
 func RunClient(serverAddress string) {
+	//logrus.SetLevel(logrus.InfoLevel)
+
 	client := NewClient(serverAddress)
 	client.Start()
 
@@ -33,20 +35,35 @@ func NewClient(server string) *Client {
 }
 
 func (c *Client) StartScan(scan *StartScan) (string, error) {
-	return IssueRequest(c.RestyClient, "POST", "scan", scan, nil)
+	return IssueRequest(c.RestyClient, "POST", "scan", scan, nil, nil)
+}
+
+func (c *Client) FetchScan(scanId string) (*ScanResults, error) {
+	scan := &ScanResults{}
+	_, err := IssueRequest(c.RestyClient, "GET", "scan", nil, map[string]string{"scan-id": scanId}, scan)
+	return scan, err
 }
 
 func (c *Client) Start() {
 	for w := 0; w < 10; w++ {
 		go func(workerId int) {
 			for i := 0; ; i++ {
-				logrus.Infof("issuing request: %d, %d", workerId, i)
+				data := rand.String(40_000)
+				logrus.Infof("issuing request: %d, %d, %s", workerId, i, data[:15])
 				resp, err := c.StartScan(&StartScan{
-					Data: fmt.Sprintf("%d-%d-%s", workerId, i, rand.String(40_000)),
+					Data: fmt.Sprintf("%d-%d-%s", workerId, i, data),
 				})
-				logrus.Infof("response to request %d, %d: %s", workerId, i, resp)
+				logrus.Infof("response from request %d, %d: %s", workerId, i, resp)
 				if err != nil {
-					logrus.Errorf("error? %+v", err)
+					logrus.Errorf("unable to start scan: %+v", err)
+				}
+
+				scan, err := c.FetchScan(fmt.Sprintf("%d-%d", workerId, i))
+				if err != nil {
+					logrus.Errorf("unable to fetch scan: %+v", err)
+				} else {
+					scanString := scan.Data
+					logrus.Infof("scan string: %s of %d", scanString[:15], len(scanString))
 				}
 				time.Sleep(1 * time.Second)
 			}
@@ -54,7 +71,7 @@ func (c *Client) Start() {
 	}
 }
 
-func IssueRequest(restyClient *resty.Client, verb string, path string, body interface{}, result interface{}) (string, error) {
+func IssueRequest(restyClient *resty.Client, verb string, path string, body interface{}, params map[string]string, result interface{}) (string, error) {
 	var err error
 	request := restyClient.R()
 	if body != nil {
@@ -68,8 +85,9 @@ func IssueRequest(restyClient *resty.Client, verb string, path string, body inte
 	if result != nil {
 		request = request.SetResult(result)
 	}
+	request = request.SetQueryParams(params)
 
-	urlPath := fmt.Sprintf("%s/%s", restyClient.HostURL, path)
+	urlPath := fmt.Sprintf("%s/%s", restyClient.BaseURL, path)
 	logrus.Debugf("issuing %s to %s", verb, urlPath)
 
 	var resp *resty.Response
@@ -91,7 +109,7 @@ func IssueRequest(restyClient *resty.Client, verb string, path string, body inte
 
 	respBody, statusCode := resp.String(), resp.StatusCode()
 	logrus.Debugf("response code %d from %s to %s", statusCode, verb, urlPath)
-	logrus.Tracef("response body: %s", respBody)
+	logrus.Tracef("response body: %s, %+v", respBody, result)
 
 	if !resp.IsSuccess() {
 		return respBody, errors.Errorf("bad status code for %s to path %s: %d, response %s", verb, path, statusCode, respBody)
