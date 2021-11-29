@@ -1,0 +1,83 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  labels:
+    app.kubernetes.io/name: client
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: client
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: client
+    spec:
+      containers:
+        - name: client
+          command: ["/main", "client", "http://server-simulator:19999"]
+          image: "localhost:5000/kube-utils/simulator:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: public
+              containerPort: 19999
+              protocol: TCP
+          env:
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator-server
+  labels:
+    app.kubernetes.io/name: simulator-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: simulator-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: simulator-server
+    spec:
+      containers:
+        - name: simulator-server
+          command: ["/main", "server"]
+          image: "localhost:5000/kube-utils/simulator:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: public
+              containerPort: 19999
+              protocol: TCP
+          env:
+          resources:
+            limits:
+              cpu: 250m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulator-server
+  labels:
+    app.kubernetes.io/name: simulator-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: simulator-server
+  ports:
+    - port: 19999
+      protocol: TCP
+      targetPort: 19999
