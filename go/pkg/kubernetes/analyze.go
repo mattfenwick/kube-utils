@@ -80,7 +80,7 @@ func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, sec
 	}
 
 	for _, envVar := range containerSpec.Env {
-		logrus.Warnf("env var? %+v\n", envVar)
+		logrus.Debugf("env var? %+v\n", envVar)
 		if envVar.ValueFrom != nil {
 			if envVar.ValueFrom.ConfigMapKeyRef != nil {
 				container.ConfigMaps[envVar.ValueFrom.ConfigMapKeyRef.Name] = true
@@ -90,7 +90,7 @@ func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, sec
 		}
 	}
 	for _, envFrom := range containerSpec.EnvFrom {
-		logrus.Warnf("env from: %+v\n", envFrom)
+		logrus.Debugf("env from: %+v\n", envFrom)
 		if envFrom.ConfigMapRef != nil {
 			container.ConfigMaps[envFrom.ConfigMapRef.Name] = true
 		} else if envFrom.SecretRef != nil {
