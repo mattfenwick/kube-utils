@@ -65,9 +65,9 @@ func RunAnalyzeExample(path string) {
 
 func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, secrets map[string]string, containerSpec v1.Container) *Container {
 	container := &Container{
-		IsInit: isInitContainer,
-		Name:   containerSpec.Name,
-		// contSpec.Image,
+		IsInit:     isInitContainer,
+		Name:       containerSpec.Name,
+		Image:      containerSpec.Image,
 		ConfigMaps: map[string]bool{},
 		Secrets:    map[string]bool{},
 	}

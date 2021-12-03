@@ -14,6 +14,7 @@ type Container struct {
 	Name       string
 	ConfigMaps map[string]bool
 	Secrets    map[string]bool
+	Image      string
 }
 
 func (c *Container) SecretsSlice() []string {
@@ -39,7 +40,6 @@ type PodSpec struct {
 	ServiceAccount   string
 	ImagePullSecrets []string
 	// TODO env vars
-	// TODO image
 }
 
 type Model struct {
@@ -129,20 +129,31 @@ func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetC
 	return CompareKeySets(createdSecrets, usedSecrets), CompareKeySets(createdConfigMaps, usedConfigMaps)
 }
 
-//type Table struct {
-//	Title string
-//
-//}
+func (m *Model) GetImageUsages() map[string][]string {
+	usages := map[string][]string{}
 
-func (m *Model) Tables() { //[]*Table {
+	for kind, podSpecs := range m.Pods {
+		for resourceName, podSpec := range podSpecs {
+			for _, container := range podSpec.Containers {
+				usages[container.Image] = append(usages[container.Image], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
+			}
+		}
+	}
+	return usages
+}
+
+func (m *Model) Tables() {
 	fmt.Println("\nskipped resources:")
 	m.SkippedResourcesTable()
 
-	fmt.Println("secrets:")
+	fmt.Println("\nsecrets:")
 	m.SecretsTable()
 
 	fmt.Println("\nconfig maps:")
 	m.ConfigMapsTable()
+
+	fmt.Println("\nimages:")
+	m.ImagesTable()
 
 	for kind, resources := range m.Pods {
 		fmt.Printf("\nkind: %s\n", kind)
@@ -226,6 +237,35 @@ func (m *Model) ConfigMapsTable() {
 	for configMap := range configMapsComparison.JustB {
 		table.Append([]string{configMap, "unknown", strings.Join(m.ConfigMapUsages(configMap), "\n")})
 	}
+	table.Render()
+	fmt.Printf("%s\n", tableString)
+}
+
+func (m *Model) ImagesTable() {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"Image", "Source"})
+
+	imageUsages := m.GetImageUsages()
+	var sortedImages []string
+	for image := range imageUsages {
+		sortedImages = append(sortedImages, image)
+	}
+	sort.Slice(sortedImages, func(i, j int) bool {
+		return sortedImages[i] < sortedImages[j]
+	})
+	logrus.Infof("sorted images: %+v", sortedImages)
+	for _, image := range sortedImages {
+		usages := imageUsages[image]
+		sort.Slice(usages, func(i, j int) bool {
+			return usages[i] < usages[j]
+		})
+		table.Append([]string{image, strings.Join(usages, "\n")})
+	}
+
 	table.Render()
 	fmt.Printf("%s\n", tableString)
 }
