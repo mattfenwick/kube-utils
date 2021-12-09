@@ -31,7 +31,8 @@ type SwaggerSpec struct {
 }
 
 func ParseJsonSpecs() {
-	resourceKinds := []string{
+	excludeResources := []string{"WatchEvent", "DeleteOptions"}
+	includeResources := []string{
 		"Service",
 		"ClusterRole",
 		"ClusterRoleBinding",
@@ -97,7 +98,7 @@ func ParseJsonSpecs() {
 		fmt.Printf("comparing %s to %s\n%s\n",
 			previousTable.Version,
 			resourcesTable.Version,
-			resourceDiff.Table(Set(resourceKinds), Set([]string{})))
+			resourceDiff.Table(Set(includeResources), Set(excludeResources)))
 
 		previousTable = resourcesTable
 	}

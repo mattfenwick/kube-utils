@@ -15,6 +15,12 @@ type MapDiff struct {
 	Same    []string
 }
 
+func (m *MapDiff) Sort() {
+	sort.Strings(m.Added)
+	sort.Strings(m.Removed)
+	sort.Strings(m.Same)
+}
+
 type ResourceDiff struct {
 	Changed map[string]*MapDiff
 }
@@ -24,9 +30,7 @@ func (r *ResourceDiff) SortedChangedKeys() []string {
 	for key := range r.Changed {
 		keys = append(keys, key)
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
+	sort.Strings(keys)
 	return keys
 }
 
@@ -39,6 +43,7 @@ func (r *ResourceDiff) Table(includes map[string]bool, skips map[string]bool) st
 	table.SetHeader([]string{"Kind", "Added", "Removed", "Same"})
 	for _, kind := range r.SortedChangedKeys() {
 		change := r.Changed[kind]
+		change.Sort()
 		if (len(includes) == 0 || includes[kind]) && !skips[kind] && (len(change.Added) != 0 || len(change.Removed) != 0) {
 			table.Append([]string{
 				kind,
@@ -65,9 +70,7 @@ func (r *ResourcesTable) SortedKinds() []string {
 	for kind := range r.Kinds {
 		kinds = append(kinds, kind)
 	}
-	sort.Slice(kinds, func(i, j int) bool {
-		return kinds[i] < kinds[j]
-	})
+	sort.Strings(kinds)
 	return kinds
 }
 
@@ -80,9 +83,7 @@ func (r *ResourcesTable) SimpleTable() string {
 	table.SetHeader([]string{"Kind", "API Version"})
 	for _, kind := range r.SortedKinds() {
 		versions := r.Kinds[kind]
-		sort.Slice(versions, func(i, j int) bool {
-			return versions[i] < versions[j]
-		})
+		sort.Strings(versions)
 		for _, apiVersion := range versions {
 			table.Append([]string{kind, apiVersion})
 		}
