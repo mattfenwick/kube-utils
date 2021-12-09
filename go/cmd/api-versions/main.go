@@ -49,6 +49,8 @@ func ParseJsonSpecs() {
 		Kinds:   map[string][]string{},
 	}
 	for _, version := range []string{
+		"1.16.15",
+		"1.17.17",
 		"1.18.19",
 		"1.19.11",
 		"1.20.7",
@@ -68,7 +70,7 @@ func ParseJsonSpecs() {
 		}
 		for a, b := range obj.Definitions {
 			if len(b.XKubernetesGroupVersionKind) > 0 {
-				fmt.Printf("%s, %s, %+v\n", a, b.Type, b.XKubernetesGroupVersionKind)
+				logrus.Debugf("%s, %s, %+v\n", a, b.Type, b.XKubernetesGroupVersionKind)
 			}
 			for _, gvk := range b.XKubernetesGroupVersionKind {
 				apiVersion := ""
@@ -79,7 +81,7 @@ func ParseJsonSpecs() {
 				resourcesTable.Kinds[gvk.Kind] = append(resourcesTable.Kinds[gvk.Kind], apiVersion)
 			}
 		}
-		fmt.Printf("simple table:\n%s\n", resourcesTable.SimpleTable())
+		//fmt.Printf("simple table:\n%s\n", resourcesTable.SimpleTable())
 
 		fmt.Printf("comparing %s to %s\n", previousTable.Version, resourcesTable.Version)
 		resourceDiff := previousTable.Diff(resourcesTable)
@@ -176,7 +178,7 @@ func (r *ResourceDiff) Table(skips map[string]bool) string {
 				strings.Join(change.Removed, "\n"),
 				strings.Join(change.Same, "\n"),
 			})
-			fmt.Printf("kind %s; added: %+v, removed: %+v, same: %+v\n", kind, change.Added, change.Removed, change.Same)
+			logrus.Debugf("kind %s; added: %+v, removed: %+v, same: %+v\n", kind, change.Added, change.Removed, change.Same)
 		}
 	}
 	table.Render()
