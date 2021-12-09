@@ -16,8 +16,6 @@ type MapDiff struct {
 }
 
 type ResourceDiff struct {
-	Added   []string
-	Removed []string
 	Changed map[string]*MapDiff
 }
 
@@ -105,24 +103,22 @@ func NewResourcesTable(version string, headers []string, rows [][]string) (*Reso
 }
 
 func (r *ResourcesTable) Diff(other *ResourcesTable) *ResourceDiff {
-	var added, removed []string
 	changed := map[string]*MapDiff{}
+
 	for ak, av := range r.Kinds {
 		bv, ok := other.Kinds[ak]
 		if ok {
 			changed[ak] = SliceDiff(av, bv)
 		} else {
-			removed = append(removed, ak)
+			changed[ak] = &MapDiff{Removed: av}
 		}
 	}
-	for bk := range other.Kinds {
+	for bk, bv := range other.Kinds {
 		if _, ok := r.Kinds[bk]; !ok {
-			added = append(added, bk)
+			changed[bk] = &MapDiff{Added: bv}
 		}
 	}
 	return &ResourceDiff{
-		Added:   added,
-		Removed: removed,
 		Changed: changed,
 	}
 }

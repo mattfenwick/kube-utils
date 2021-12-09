@@ -43,8 +43,6 @@ func ParseKindResults() {
 
 		fmt.Printf("comparing %s to %s\n", previousTable.Version, rsTable.Version)
 		resourceDiff := previousTable.Diff(rsTable)
-		fmt.Printf("added: %+v\n", resourceDiff.Added)
-		fmt.Printf("removed: %+v\n", resourceDiff.Removed)
 		fmt.Printf("changed:\n%s\n", resourceDiff.Table(map[string]bool{}, map[string]bool{}))
 		//for kind, change := range resourceDiff.Changed {
 		//	if len(change.Added) != 0 || len(change.Removed) != 0 {

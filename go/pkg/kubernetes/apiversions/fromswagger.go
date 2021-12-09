@@ -31,6 +31,23 @@ type SwaggerSpec struct {
 }
 
 func ParseJsonSpecs() {
+	resourceKinds := []string{
+		"Service",
+		"ClusterRole",
+		"ClusterRoleBinding",
+		"ConfigMap",
+		"CronJob",
+		"CustomResourceDefinition",
+		"Deployment",
+		"Ingress",
+		"Job",
+		"Role",
+		"RoleBinding",
+		"Secret",
+		"ServiceAccount",
+		"StatefulSet",
+	}
+
 	previousTable := &ResourcesTable{
 		Version: "???",
 		Kinds:   map[string][]string{},
@@ -76,26 +93,11 @@ func ParseJsonSpecs() {
 		}
 		//fmt.Printf("simple table:\n%s\n", resourcesTable.SimpleTable())
 
-		fmt.Printf("comparing %s to %s\n", previousTable.Version, resourcesTable.Version)
 		resourceDiff := previousTable.Diff(resourcesTable)
-		fmt.Printf("added: %+v\n", resourceDiff.Added)
-		fmt.Printf("removed: %+v\n", resourceDiff.Removed)
-		fmt.Printf("changed:\n%s\n", resourceDiff.Table(Set([]string{
-			"Service",
-			"ClusterRole",
-			"ClusterRoleBinding",
-			"ConfigMap",
-			"CronJob",
-			"CustomResourceDefinition",
-			"Deployment",
-			"Ingress",
-			"Job",
-			"Role",
-			"RoleBinding",
-			"Secret",
-			"ServiceAccount",
-			"StatefulSet",
-		}), Set([]string{"WatchEvent", "DeleteOptions"})))
+		fmt.Printf("comparing %s to %s\n%s\n",
+			previousTable.Version,
+			resourcesTable.Version,
+			resourceDiff.Table(Set(resourceKinds), Set([]string{})))
 
 		previousTable = resourcesTable
 	}
