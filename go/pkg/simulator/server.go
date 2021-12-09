@@ -53,7 +53,7 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, httpError error, 
 
 func DoOrDie(err error) {
 	if err != nil {
-		logrus.Fatalf("%v", err)
+		logrus.Fatalf("%+v", err)
 	}
 }
 
