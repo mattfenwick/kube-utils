@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
 	"github.com/olekukonko/tablewriter"
@@ -9,16 +10,99 @@ import (
 	"io/ioutil"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 func main() {
+	parseJsonSpecs := true
+	if parseJsonSpecs {
+		ParseJsonSpecs()
+	} else {
+		ParseKindResults()
+	}
+}
+
+type SwaggerSpec struct {
+	Definitions map[string]struct {
+		Description string
+		// Properties
+		Type                        string
+		XKubernetesGroupVersionKind []struct {
+			Group   string
+			Kind    string
+			Version string
+		} `json:"x-kubernetes-group-version-kind"`
+	}
+	Info struct {
+		Title   string
+		Version string
+	}
+	//Paths map[string]interface{}
+	//Security int
+	//SecurityDefinitions int
+}
+
+func ParseJsonSpecs() {
+	previousTable := &ResourcesTable{
+		Version: "???",
+		Kinds:   map[string][]string{},
+	}
+	for _, version := range []string{
+		"1.18.19",
+		"1.19.11",
+		"1.20.7",
+		"1.21.2",
+		"1.22.4",
+		"1.23.0",
+	} {
+		path := fmt.Sprintf("../kube/swagger-specs/v%s-swagger-spec.json", version)
+		in, err := ioutil.ReadFile(path)
+		simulator.DoOrDie(err)
+		obj := &SwaggerSpec{}
+		err = json.Unmarshal(in, obj)
+		simulator.DoOrDie(err)
+		resourcesTable := &ResourcesTable{
+			Version: version,
+			Kinds:   map[string][]string{},
+		}
+		for a, b := range obj.Definitions {
+			if len(b.XKubernetesGroupVersionKind) > 0 {
+				fmt.Printf("%s, %s, %+v\n", a, b.Type, b.XKubernetesGroupVersionKind)
+			}
+			for _, gvk := range b.XKubernetesGroupVersionKind {
+				apiVersion := ""
+				if gvk.Group != "" {
+					apiVersion = gvk.Group + "."
+				}
+				apiVersion += gvk.Version
+				resourcesTable.Kinds[gvk.Kind] = append(resourcesTable.Kinds[gvk.Kind], apiVersion)
+			}
+		}
+		fmt.Printf("simple table:\n%s\n", resourcesTable.SimpleTable())
+
+		fmt.Printf("comparing %s to %s\n", previousTable.Version, resourcesTable.Version)
+		resourceDiff := previousTable.Diff(resourcesTable)
+		fmt.Printf("added: %+v\n", resourceDiff.Added)
+		fmt.Printf("removed: %+v\n", resourceDiff.Removed)
+		fmt.Printf("changed:\n%s\n", resourceDiff.Table(Set([]string{"WatchEvent", "DeleteOptions"})))
+
+		previousTable = resourcesTable
+	}
+}
+
+func ParseKindResults() {
 	previousTable := &ResourcesTable{
 		Version: "",
 		Kinds:   map[string][]string{},
 		Headers: nil,
 		Rows:    nil,
 	}
+
+	// TODO see:
+	//  - https://raw.githubusercontent.com/kubernetes/kubernetes/v1.18.19/api/openapi-spec/swagger.json
+	//  - https://raw.githubusercontent.com/kubernetes/kubernetes/v1.23.0/api/openapi-spec/swagger.json
+
 	for _, version := range []string{
 		"1.18.19",
 		"1.19.11",
@@ -32,7 +116,7 @@ func main() {
 		rsTable, err := NewResourcesTable(version, headers, rows)
 		simulator.DoOrDie(err)
 
-		fmt.Printf("%s\n", rsTable.Table())
+		fmt.Printf("%s\n", rsTable.KindResourcesTable())
 
 		//for kind, apiVersions := range rsTable.Kinds {
 		//	fmt.Printf("%s, %+v\n", kind, apiVersions)
@@ -42,7 +126,7 @@ func main() {
 		resourceDiff := previousTable.Diff(rsTable)
 		fmt.Printf("added: %+v\n", resourceDiff.Added)
 		fmt.Printf("removed: %+v\n", resourceDiff.Removed)
-		fmt.Printf("changed:\n%s\n", resourceDiff.Table())
+		fmt.Printf("changed:\n%s\n", resourceDiff.Table(map[string]bool{}))
 		//for kind, change := range resourceDiff.Changed {
 		//	if len(change.Added) != 0 || len(change.Removed) != 0 {
 		//		fmt.Printf("kind %s; added: %+v, removed: %+v, same: %+v\n", kind, change.Added, change.Removed, change.Same)
@@ -65,15 +149,27 @@ type ResourceDiff struct {
 	Changed map[string]*MapDiff
 }
 
-func (r *ResourceDiff) Table() string {
+func (r *ResourceDiff) SortedChangedKeys() []string {
+	var keys []string
+	for key := range r.Changed {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
+func (r *ResourceDiff) Table(skips map[string]bool) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
 	table.SetHeader([]string{"Kind", "Added", "Removed", "Same"})
-	for kind, change := range r.Changed {
-		if len(change.Added) != 0 || len(change.Removed) != 0 {
+	for _, kind := range r.SortedChangedKeys() {
+		change := r.Changed[kind]
+		if !skips[kind] && (len(change.Added) != 0 || len(change.Removed) != 0) {
 			table.Append([]string{
 				kind,
 				strings.Join(change.Added, "\n"),
@@ -92,6 +188,37 @@ type ResourcesTable struct {
 	Kinds   map[string][]string
 	Headers []string
 	Rows    [][]string
+}
+
+func (r *ResourcesTable) SortedKinds() []string {
+	var kinds []string
+	for kind := range r.Kinds {
+		kinds = append(kinds, kind)
+	}
+	sort.Slice(kinds, func(i, j int) bool {
+		return kinds[i] < kinds[j]
+	})
+	return kinds
+}
+
+func (r *ResourcesTable) SimpleTable() string {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"Kind", "API Version"})
+	for _, kind := range r.SortedKinds() {
+		versions := r.Kinds[kind]
+		sort.Slice(versions, func(i, j int) bool {
+			return versions[i] < versions[j]
+		})
+		for _, apiVersion := range versions {
+			table.Append([]string{kind, apiVersion})
+		}
+	}
+	table.Render()
+	return tableString.String()
 }
 
 func NewResourcesTable(version string, headers []string, rows [][]string) (*ResourcesTable, error) {
@@ -128,6 +255,18 @@ func (r *ResourcesTable) Diff(other *ResourcesTable) *ResourceDiff {
 	}
 }
 
+func (r *ResourcesTable) KindResourcesTable() string {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetHeader(r.Headers)
+	table.AppendBulk(r.Rows)
+	table.Render()
+	return tableString.String()
+}
+
 func Set(xs []string) map[string]bool {
 	out := map[string]bool{}
 	for _, x := range xs {
@@ -156,18 +295,6 @@ func SliceDiff(as []string, bs []string) *MapDiff {
 		Removed: removed,
 		Same:    same,
 	}
-}
-
-func (r *ResourcesTable) Table() string {
-	tableString := &strings.Builder{}
-	table := tablewriter.NewWriter(tableString)
-	table.SetAutoWrapText(false)
-	table.SetRowLine(true)
-	table.SetAutoMergeCells(true)
-	table.SetHeader(r.Headers)
-	table.AppendBulk(r.Rows)
-	table.Render()
-	return tableString.String()
 }
 
 func ReadCSV(path string) ([]string, [][]string, error) {
