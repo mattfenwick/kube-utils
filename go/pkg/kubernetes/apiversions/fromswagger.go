@@ -53,7 +53,22 @@ func ParseJsonSpecs() {
 		Version: "???",
 		Kinds:   map[string][]string{},
 	}
+	// these version numbers come from https://github.com/kubernetes/kubernetes/tree/master/CHANGELOG
 	for _, version := range []string{
+		"1.2.7",
+		"1.3.10",
+		"1.4.12",
+		"1.5.8",
+		"1.6.13",
+		"1.7.16",
+		"1.8.15",
+		"1.9.11",
+		"1.10.13",
+		"1.11.10",
+		"1.12.10",
+		"1.13.12",
+		"1.14.10",
+		"1.15.12",
 		"1.16.15",
 		"1.17.17",
 		"1.18.19",
