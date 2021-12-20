@@ -6,15 +6,46 @@ import (
 	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 )
 
+type Args struct {
+	File  string
+	Regex string
+}
+
+func setupCommand() *cobra.Command {
+	args := &Args{}
+
+	command := &cobra.Command{
+		Use:   "find-json",
+		Short: "find strings in a JSON blob",
+		Args:  cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, as []string) {
+			RunFindInJson(args)
+		},
+	}
+
+	command.Flags().StringVar(&args.File, "file", "", "json file in which to search")
+
+	command.Flags().StringVar(&args.Regex, "regex", "", "regex to search for")
+	simulator.DoOrDie(command.MarkFlagRequired("regex"))
+
+	return command
+}
+
 func main() {
-	path := os.Args[1]
-	regexString := os.Args[2]
+	command := setupCommand()
+	err := errors.Wrapf(command.Execute(), "run root command")
+	simulator.DoOrDie(err)
+}
+
+func RunFindInJson(args *Args) {
+	path := args.File
+	regexString := args.Regex
 
 	bytes, err := ioutil.ReadFile(path)
 	simulator.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
