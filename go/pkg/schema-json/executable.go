@@ -15,8 +15,70 @@ import (
 	"strings"
 )
 
-func Pointer(s string) *string {
-	return &s
+func Executable() {
+	//mode := "find-by-path-nested-items"
+	mode := "parse"
+
+	switch mode {
+	case "parse":
+		RunParse()
+	case "find-by-path-nested-items":
+		RunFindByPathNestedItems()
+	case "find-by-path":
+		logrus.SetLevel(logrus.DebugLevel)
+		RunFindByPath()
+	case "find-by-regex":
+		RunFindByRegex()
+	}
+}
+
+func RunParse() {
+	path := os.Args[1]
+	spec, err := ReadSwaggerSpecs(path)
+	utils.DoOrDie(err)
+
+	for name, t := range spec.Definitions {
+		for propName, prop := range t.Properties {
+			fmt.Printf("%s, %s: %+v\n<<>>\n", name, propName, prop.Items)
+		}
+	}
+
+	outputPath := "out-sorted.json"
+	err = utils.WriteJson(outputPath, spec)
+	utils.DoOrDie(err)
+	// must again unmarshal/marshal to get struct keys sorted
+	err = utils.JsonUnmarshalMarshal(outputPath)
+	utils.DoOrDie(err)
+
+	//fmt.Printf("spec:\n%+v\n", spec)
+}
+
+func RunFindByPathNestedItems() {
+	path := os.Args[1]
+
+	logrus.SetLevel(logrus.DebugLevel)
+
+	nestedItemsSelector := []*Selector{
+		{Key: Pointer("definitions")},
+		{IsGlob: true},
+		{Key: Pointer("properties")},
+		{Key: Pointer("items")},
+		{Key: Pointer("items")},
+	}
+
+	var obj map[string]interface{}
+	err := utils.ReadJson(path, &obj)
+	utils.DoOrDie(errors.Wrapf(err, "unable to read json from %s", path))
+
+	results := JsonFindBySelector(obj, nestedItemsSelector, []*PathComponent{})
+
+	if len(results) == 0 {
+		fmt.Println("found 0 results")
+	}
+
+	for _, result := range results {
+		fmt.Printf("result: - %s\n - %+v\n", PathString(result.Path), result.Value)
+	}
 }
 
 func RunFindByPath() {
@@ -31,12 +93,9 @@ func RunFindByPath() {
 	}
 	// ["definitions"]["io.k8s.api.extensions.v1beta1.Ingress"]["x-kubernetes-group-version-kind"][0]["kind"]
 
-	bytes, err := ioutil.ReadFile(path)
-	utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
-
 	var obj map[string]interface{}
-	err = json.Unmarshal(bytes, &obj)
-	utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+	err := utils.ReadJson(path, obj)
+	utils.DoOrDie(errors.Wrapf(err, "unable to read json from %s", path))
 
 	results := JsonFindBySelector(obj, selector, []*PathComponent{})
 

@@ -1,13 +1,11 @@
 package apiversions
 
 import (
-	"encoding/json"
 	"fmt"
 	schema_json "github.com/mattfenwick/kube-utils/go/pkg/schema-json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"os"
 )
 
@@ -29,6 +27,9 @@ func ParseJsonSpecs() {
 		"ServiceAccount",
 		"StatefulSet",
 	}
+
+	err := os.MkdirAll("./swagger-data", 0777)
+	utils.DoOrDie(errors.Wrapf(err, "unable to mkdir ./swagger-data"))
 
 	previousTable := &ResourcesTable{
 		Version: "???",
@@ -60,18 +61,13 @@ func ParseJsonSpecs() {
 		"1.22.4",
 		"1.23.0",
 	} {
-		err := os.MkdirAll("./swagger-data", 0777)
-		utils.DoOrDie(err)
-
 		path := fmt.Sprintf("./swagger-data/%s-swagger-spec.json", version)
-		//err = GetFileFromURL(BuildSwaggerSpecsURL(version), path)
+		err = GetFileFromURL(BuildSwaggerSpecsURL(version), path)
 		utils.DoOrDie(err)
 
-		in, err := ioutil.ReadFile(path)
-		utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
-		obj := &schema_json.SwaggerSpec{}
-		err = json.Unmarshal(in, obj)
-		utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+		obj, err := schema_json.ReadSwaggerSpecs(path)
+		utils.DoOrDie(err)
+
 		resourcesTable := &ResourcesTable{
 			Version: version,
 			Kinds:   map[string][]string{},

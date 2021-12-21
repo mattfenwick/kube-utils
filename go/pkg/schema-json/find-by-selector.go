@@ -69,11 +69,12 @@ func JsonFindBySelector(obj interface{}, selector []*Selector, context []*PathCo
 				if ok {
 					results = append(results,
 						JsonFindBySelector(v, selector[1:], append(context, NewMapValuePathComponent(*next.Key)))...)
+				} else {
+					logrus.Infof("did not find key %s; keys: %+v", *next.Key, utils.MapKeys(o))
 				}
 
-				// debug
 				for k := range o {
-					logrus.Infof("key in map: %s", k)
+					logrus.Debugf("key in map: %s", k)
 				}
 			}
 		default:
