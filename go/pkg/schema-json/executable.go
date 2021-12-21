@@ -125,7 +125,7 @@ type FindByRegexArgs struct {
 }
 
 func (a *FindByRegexArgs) Json() string {
-	bytes, err := json.MarshalIndent(a, "", "  ")
+	bytes, err := utils.MarshalIndent(a, "", "  ")
 	utils.DoOrDie(errors.Wrapf(err, "unable to marshal json for FindByRegexArgs"))
 	return string(bytes)
 }

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -14,22 +15,45 @@ func DoOrDie(err error) {
 }
 
 func ReadJson(path string, obj interface{}) error {
-	bytes, err := ioutil.ReadFile(path)
+	bs, err := ioutil.ReadFile(path)
 	if err != nil {
 		return errors.Wrapf(err, "unable to read file %s", path)
 	}
 
-	err = json.Unmarshal(bytes, obj)
+	err = json.Unmarshal(bs, obj)
 	return errors.Wrapf(err, "unable to unmarshal json")
 }
 
+// Marshal is a stand-in for json.Marshal which *does not escape HTML*
+func Marshal(t interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(t)
+	return buffer.Bytes(), errors.Wrapf(err, "unable to encode json")
+}
+
+// MarshalIndent is a stand-in for json.MarshalIndent which *does not escape HTML*
+func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+	bs, err := Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var destinationBuffer bytes.Buffer
+	err = json.Indent(&destinationBuffer, bs, prefix, indent)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to indent json")
+	}
+	return destinationBuffer.Bytes(), nil
+}
+
 func WriteJson(path string, obj interface{}) error {
-	bytes, err := json.MarshalIndent(obj, "", "  ")
+	bs, err := MarshalIndent(obj, "", "  ")
 	if err != nil {
 		return errors.Wrapf(err, "unable to marshal json")
 	}
 
-	err = ioutil.WriteFile(path, bytes, 0644)
+	err = ioutil.WriteFile(path, bs, 0644)
 	return errors.Wrapf(err, "unable to write file %s", path)
 }
 
