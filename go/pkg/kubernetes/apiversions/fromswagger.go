@@ -3,32 +3,13 @@ package apiversions
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
+	schema_json "github.com/mattfenwick/kube-utils/go/pkg/schema-json"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 )
-
-type SwaggerSpec struct {
-	Definitions map[string]struct {
-		Description string
-		// Properties
-		Type                        string
-		XKubernetesGroupVersionKind []struct {
-			Group   string
-			Kind    string
-			Version string
-		} `json:"x-kubernetes-group-version-kind"`
-	}
-	Info struct {
-		Title   string
-		Version string
-	}
-	//Paths map[string]interface{}
-	//Security int
-	//SecurityDefinitions int
-}
 
 func ParseJsonSpecs() {
 	excludeResources := []string{"WatchEvent", "DeleteOptions"}
@@ -80,17 +61,17 @@ func ParseJsonSpecs() {
 		"1.23.0",
 	} {
 		err := os.MkdirAll("./swagger-data", 0777)
-		simulator.DoOrDie(err)
+		utils.DoOrDie(err)
 
 		path := fmt.Sprintf("./swagger-data/%s-swagger-spec.json", version)
-		err = GetFileFromURL(BuildSwaggerSpecsURL(version), path)
-		simulator.DoOrDie(err)
+		//err = GetFileFromURL(BuildSwaggerSpecsURL(version), path)
+		utils.DoOrDie(err)
 
 		in, err := ioutil.ReadFile(path)
-		simulator.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
-		obj := &SwaggerSpec{}
+		utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
+		obj := &schema_json.SwaggerSpec{}
 		err = json.Unmarshal(in, obj)
-		simulator.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+		utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
 		resourcesTable := &ResourcesTable{
 			Version: version,
 			Kinds:   map[string][]string{},

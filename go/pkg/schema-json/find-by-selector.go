@@ -1,7 +1,7 @@
 package schema_json
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"regexp"
@@ -55,7 +55,7 @@ func JsonFindBySelector(obj interface{}, selector []*Selector, context []*PathCo
 				logrus.Debugf("searching under array")
 				index64, err := strconv.ParseInt(*next.Key, 10, 32)
 				index := int(index64)
-				simulator.DoOrDie(errors.Wrapf(err, "unable to ParseInt from %s", *next.Key))
+				utils.DoOrDie(errors.Wrapf(err, "unable to ParseInt from %s", *next.Key))
 				if index < len(o) {
 					results = append(results,
 						JsonFindBySelector(o[index], selector[1:], append(context, NewArrayPathComponent(index)))...)

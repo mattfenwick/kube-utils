@@ -2,7 +2,7 @@ package apiversions
 
 import (
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -31,9 +31,9 @@ func ParseKindResults() {
 		"1.23.0",
 	} {
 		headers, rows, err := ReadCSV(fmt.Sprintf("../kube/data/v%s-api-resources.txt", version))
-		simulator.DoOrDie(err)
+		utils.DoOrDie(err)
 		rsTable, err := NewResourcesTable(version, headers, rows)
-		simulator.DoOrDie(err)
+		utils.DoOrDie(err)
 
 		fmt.Printf("%s\n", rsTable.KindResourcesTable())
 

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	goyaml "gopkg.in/yaml.v3"
@@ -21,7 +22,7 @@ func BounceMarshal(in interface{}, out interface{}) error {
 
 func RunAnalyzeExample(path string) {
 	objs, err := ParseManyFromFile(path)
-	DoOrDie(err)
+	utils.DoOrDie(err)
 	model := NewModel()
 	for _, o := range objs {
 		if o == nil {
@@ -35,19 +36,19 @@ func RunAnalyzeExample(path string) {
 		switch kind {
 		case "Deployment":
 			var dep *appsv1.Deployment
-			DoOrDie(BounceMarshal(o, &dep))
+			utils.DoOrDie(BounceMarshal(o, &dep))
 			model.AddPodWrapper("Deployment", dep.Name, AnalyzeDeployment(dep))
 		case "StatefulSet":
 			var sset *appsv1.StatefulSet
-			DoOrDie(BounceMarshal(o, &sset))
+			utils.DoOrDie(BounceMarshal(o, &sset))
 			model.AddPodWrapper("StatefulSet", sset.Name, AnalyzeStatefulSet(sset))
 		case "Job":
 			var job *batchv1.Job
-			DoOrDie(BounceMarshal(o, &job))
+			utils.DoOrDie(BounceMarshal(o, &job))
 			model.AddPodWrapper("Job", job.Name, AnalyzeJob(job))
 		case "CronJob":
 			var job *batchv1.CronJob
-			DoOrDie(BounceMarshal(o, &job))
+			utils.DoOrDie(BounceMarshal(o, &job))
 			model.AddPodWrapper("CronJob", job.Name, AnalyzeCronJob(job))
 		case "Secret":
 			model.Secrets = append(model.Secrets, resourceName)

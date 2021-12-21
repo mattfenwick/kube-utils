@@ -3,6 +3,7 @@ package simulator
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -20,7 +21,7 @@ func RunServer() {
 	addr := fmt.Sprintf(":%d", port)
 	go func() {
 		logrus.Infof("starting HTTP server on port %d", port)
-		DoOrDie(http.ListenAndServe(addr, nil))
+		utils.DoOrDie(http.ListenAndServe(addr, nil))
 	}()
 	<-stop
 }
@@ -42,19 +43,13 @@ func (s *Server) FetchScanResults(scanId string) (*ScanResults, error) {
 func (s *Server) NotFound(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(404)
 	_, err := w.Write([]byte("not found"))
-	DoOrDie(err)
+	utils.DoOrDie(err)
 }
 
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, httpError error, statusCode int) {
 	w.WriteHeader(statusCode)
 	_, err := w.Write([]byte(httpError.Error()))
-	DoOrDie(err)
-}
-
-func DoOrDie(err error) {
-	if err != nil {
-		logrus.Fatalf("%+v", err)
-	}
+	utils.DoOrDie(err)
 }
 
 // Responder .....
@@ -86,7 +81,7 @@ func SetupHTTPServer(responder Responder) {
 			}
 			responder.StartScan(&request)
 			_, err = fmt.Fprint(w, "")
-			DoOrDie(err)
+			utils.DoOrDie(err)
 		case "GET":
 			ids, ok := r.URL.Query()["scan-id"]
 			if !ok || len(ids) == 0 {
@@ -109,7 +104,7 @@ func SetupHTTPServer(responder Responder) {
 			}
 			w.Header().Set(http.CanonicalHeaderKey("content-type"), "application/json")
 			_, err = fmt.Fprint(w, string(bytes))
-			DoOrDie(err)
+			utils.DoOrDie(err)
 		default:
 			responder.NotFound(w, r)
 		}

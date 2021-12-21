@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -22,16 +23,16 @@ func init() {
 
 func Run(path string) {
 	data, err := ioutil.ReadFile(path)
-	DoOrDie(errors.Wrapf(err, "unable to read file"))
+	utils.DoOrDie(errors.Wrapf(err, "unable to read file"))
 
 	values, err := ParseMany(data)
 	for _, v := range values {
 		fmt.Printf("found value: %+v\n\n", v)
 	}
-	DoOrDie(err)
+	utils.DoOrDie(err)
 
 	resources, err := ParseResources(values)
-	DoOrDie(err)
+	utils.DoOrDie(err)
 
 	for kind, resources := range resources.ClusterScoped {
 		fmt.Printf("cluster-scoped %s:\n", kind)
@@ -77,12 +78,6 @@ func ParseMany(data []byte) ([]interface{}, error) {
 	}
 
 	return out, nil
-}
-
-func DoOrDie(err error) {
-	if err != nil {
-		logrus.Fatalf("%v", err)
-	}
 }
 
 type KubeResources struct {
@@ -169,7 +164,7 @@ func ParseResources(values []interface{}) (*KubeResources, error) {
 			name := metadata["name"].(string)
 			logrus.Debugf("kind: %s; name: %s; namespace: %s\n", m["kind"], metadata["name"], namespace)
 			err := resources.Add(NewNode(kind, namespace, name))
-			DoOrDie(err)
+			utils.DoOrDie(err)
 		case nil:
 			logrus.Warnf("skipping nil object")
 		default:

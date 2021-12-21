@@ -2,7 +2,7 @@ package schema_json
 
 import (
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 )
 
@@ -32,7 +32,7 @@ func (p *PathComponent) RawString() string {
 	} else if p.ArrayIndex != nil {
 		return fmt.Sprintf("%d", *p.ArrayIndex)
 	} else {
-		simulator.DoOrDie(errors.Errorf("invalid PathComponent: %+v", p))
+		utils.DoOrDie(errors.Errorf("invalid PathComponent: %+v", p))
 	}
 	panic(errors.Errorf("this shouldn't happen"))
 }
@@ -45,7 +45,7 @@ func (p *PathComponent) PathString() string {
 	} else if p.ArrayIndex != nil {
 		return fmt.Sprintf(`[%d]`, *p.ArrayIndex)
 	} else {
-		simulator.DoOrDie(errors.Errorf("invalid PathComponent: %+v", p))
+		utils.DoOrDie(errors.Errorf("invalid PathComponent: %+v", p))
 	}
 	panic(errors.Errorf("this shouldn't happen"))
 }

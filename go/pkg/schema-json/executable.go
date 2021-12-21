@@ -3,7 +3,7 @@ package schema_json
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -32,11 +32,11 @@ func RunFindByPath() {
 	// ["definitions"]["io.k8s.api.extensions.v1beta1.Ingress"]["x-kubernetes-group-version-kind"][0]["kind"]
 
 	bytes, err := ioutil.ReadFile(path)
-	simulator.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
+	utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
 
 	var obj map[string]interface{}
 	err = json.Unmarshal(bytes, &obj)
-	simulator.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+	utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
 
 	results := JsonFindBySelector(obj, selector, []*PathComponent{})
 
@@ -67,7 +67,7 @@ type FindByRegexArgs struct {
 
 func (a *FindByRegexArgs) Json() string {
 	bytes, err := json.MarshalIndent(a, "", "  ")
-	simulator.DoOrDie(errors.Wrapf(err, "unable to marshal json for FindByRegexArgs"))
+	utils.DoOrDie(errors.Wrapf(err, "unable to marshal json for FindByRegexArgs"))
 	return string(bytes)
 }
 
@@ -100,22 +100,22 @@ func setupFindByRegexCommand() *cobra.Command {
 			args := &FindByRegexArgs{}
 
 			bytes, err := ioutil.ReadFile(configPath)
-			simulator.DoOrDie(errors.Wrapf(err, "unable to read file %s", configPath))
+			utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", configPath))
 
 			err = json.Unmarshal(bytes, &args)
-			simulator.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+			utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
 
 			RunFindInJsonByRegex(args)
 		},
 	}
 
 	command.Flags().StringVar(&configPath, "config-path", "", "path to json config file")
-	simulator.DoOrDie(command.MarkFlagRequired("config-path"))
+	utils.DoOrDie(command.MarkFlagRequired("config-path"))
 
 	//command.Flags().StringVar(&args.File, "file", "", "json file in which to search")
 	//
 	//command.Flags().StringVar(&args.Regex, "regex", "", "regex to search for")
-	//simulator.DoOrDie(command.MarkFlagRequired("regex"))
+	//utils.DoOrDie(command.MarkFlagRequired("regex"))
 	//
 	//command.Flags().StringSliceVar(&args.StartPath, "start-path", []string{}, "path to search under")
 
@@ -127,7 +127,7 @@ func RunFindByRegex() {
 
 	command := setupFindByRegexCommand()
 	err := errors.Wrapf(command.Execute(), "run root command")
-	simulator.DoOrDie(err)
+	utils.DoOrDie(err)
 }
 
 func RunFindInJsonByRegex(args *FindByRegexArgs) {
@@ -137,11 +137,11 @@ func RunFindInJsonByRegex(args *FindByRegexArgs) {
 	regexString := args.Regex
 
 	bytes, err := ioutil.ReadFile(path)
-	simulator.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
+	utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
 
 	var obj map[string]interface{}
 	err = json.Unmarshal(bytes, &obj)
-	simulator.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+	utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
 
 	re := regexp.MustCompile(regexString)
 	var matches []*KeyMatch
