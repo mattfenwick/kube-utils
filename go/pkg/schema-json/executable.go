@@ -6,6 +6,7 @@ import (
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
+	"github.com/r3labs/diff/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"io/ioutil"
@@ -17,9 +18,12 @@ import (
 
 func Executable() {
 	//mode := "find-by-path-nested-items"
-	mode := "parse"
+	//mode := "parse"
+	mode := "diff"
 
 	switch mode {
+	case "diff":
+		RunDiff()
 	case "parse":
 		RunParse()
 	case "find-by-path-nested-items":
@@ -29,6 +33,29 @@ func Executable() {
 		RunFindByPath()
 	case "find-by-regex":
 		RunFindByRegex()
+	}
+}
+
+func RunDiff() {
+	path1, path2 := os.Args[1], os.Args[2]
+
+	spec1, err := ReadSwaggerSpecs(path1)
+	utils.DoOrDie(err)
+	spec2, err := ReadSwaggerSpecs(path2)
+	utils.DoOrDie(err)
+
+	// TODO this library only seems to report leaf properties that have been removed, even if whole branches are gone
+	changelog, err := diff.Diff(spec1, spec2)
+	utils.DoOrDie(err)
+
+	//fmt.Printf("%+v\n", changelog)
+	for _, change := range changelog {
+		if change.Type == "update" && change.Path[len(change.Path)-1] == "Description" && strings.Contains(change.To.(string), "eprecate") {
+			// TODO this logic doesn't really work
+			fmt.Printf("found something getting deprecated: %+v\n", change.Path)
+		} else {
+			fmt.Printf("found a %s change: %+v\n", change.Type, change.Path)
+		}
 	}
 }
 
@@ -50,6 +77,8 @@ func RunParse() {
 	err = utils.JsonUnmarshalMarshal(outputPath)
 	utils.DoOrDie(err)
 
+	fmt.Printf("%s\n", strings.Join(spec.VersionKindLengths(), "\n"))
+
 	//fmt.Printf("spec:\n%+v\n", spec)
 }
 
@@ -59,11 +88,11 @@ func RunFindByPathNestedItems() {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	nestedItemsSelector := []*Selector{
-		{Key: Pointer("definitions")},
+		{Key: utils.Pointer("definitions")},
 		{IsGlob: true},
-		{Key: Pointer("properties")},
-		{Key: Pointer("items")},
-		{Key: Pointer("items")},
+		{Key: utils.Pointer("properties")},
+		{Key: utils.Pointer("items")},
+		{Key: utils.Pointer("items")},
 	}
 
 	var obj map[string]interface{}
@@ -85,11 +114,11 @@ func RunFindByPath() {
 	path := os.Args[1]
 
 	selector := []*Selector{
-		{Key: Pointer("definitions")},
+		{Key: utils.Pointer("definitions")},
 		{IsGlob: true},
-		{Key: Pointer("x-kubernetes-group-version-kind")},
-		{Key: Pointer("0"), IsArray: true},
-		{Key: Pointer("kind")},
+		{Key: utils.Pointer("x-kubernetes-group-version-kind")},
+		{Key: utils.Pointer("0"), IsArray: true},
+		{Key: utils.Pointer("kind")},
 	}
 	// ["definitions"]["io.k8s.api.extensions.v1beta1.Ingress"]["x-kubernetes-group-version-kind"][0]["kind"]
 

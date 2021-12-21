@@ -77,3 +77,13 @@ func MapKeys(dict map[string]interface{}) []string {
 	}
 	return keys
 }
+
+func MapFilterEmptyValues(dict map[string]string) map[string]string {
+	out := map[string]string{}
+	for k, v := range dict {
+		if v != "" {
+			out[k] = v
+		}
+	}
+	return out
+}
