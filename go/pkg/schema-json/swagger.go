@@ -7,10 +7,9 @@ import (
 )
 
 type SwaggerProperty struct {
-	AdditionalProperties *SwaggerProperty `json:"additionalProperties,omitempty"`
-	Description          string           `json:"description,omitempty"`
-	//Items       map[string]*SwaggerProperty // TODO why doesn't this work?
-	Items                    map[string]string `json:"items,omitempty"` // interface{} // TODO this isn't right -- need to tighten up
+	AdditionalProperties     *SwaggerProperty  `json:"additionalProperties,omitempty"`
+	Description              string            `json:"description,omitempty"`
+	Items                    map[string]string `json:"items,omitempty"`
 	Type                     string            `json:"type,omitempty"`
 	Ref                      string            `json:"$ref,omitempty"`
 	Format                   string            `json:"format,omitempty"`
