@@ -39,29 +39,29 @@ func Executable() {
 func RunDiff() {
 	path1, path2 := os.Args[1], os.Args[2]
 
-	if true {
-		spec1 := map[string]interface{}{}
-		err := utils.ReadJson(path1, &spec1)
-		utils.DoOrDie(err)
-		spec2 := map[string]interface{}{}
-		err = utils.ReadJson(path2, &spec2)
-		utils.DoOrDie(err)
-		diffs := &utils.Diffs{}
-		utils.JsonDiff(spec1, spec2, []string{}, diffs)
+	spec1 := map[string]interface{}{}
+	err := utils.ReadJson(path1, &spec1)
+	utils.DoOrDie(err)
+	spec2 := map[string]interface{}{}
+	err = utils.ReadJson(path2, &spec2)
+	utils.DoOrDie(err)
+	diffs := &utils.Diffs{}
+	utils.JsonDiff(spec1, spec2, []string{}, diffs)
+
+	swaggerSpec1, err := ReadSwaggerSpecs(path1)
+	utils.DoOrDie(err)
+	swaggerSpec2, err := ReadSwaggerSpecs(path2)
+	utils.DoOrDie(err)
+
+	// TODO this library only seems to report leaf properties that have been removed, even if whole branches are gone
+	changelog, err := diff.Diff(swaggerSpec1, swaggerSpec2)
+	utils.DoOrDie(err)
+
+	if os.Args[3] == "true" {
 		for _, d := range diffs.Elements {
 			fmt.Printf("%s at %+v\n", d.Type, d.Path)
 		}
 	} else {
-		spec1, err := ReadSwaggerSpecs(path1)
-		utils.DoOrDie(err)
-		spec2, err := ReadSwaggerSpecs(path2)
-		utils.DoOrDie(err)
-
-		// TODO this library only seems to report leaf properties that have been removed, even if whole branches are gone
-		changelog, err := diff.Diff(spec1, spec2)
-		utils.DoOrDie(err)
-
-		//fmt.Printf("%+v\n", changelog)
 		for _, change := range changelog {
 			if change.Type == "update" && change.Path[len(change.Path)-1] == "Description" && strings.Contains(change.To.(string), "eprecate") {
 				// TODO this logic doesn't really work

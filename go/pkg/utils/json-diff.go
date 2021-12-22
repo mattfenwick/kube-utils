@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"sort"
 )
 
 type Diffs struct {
@@ -30,12 +31,16 @@ func JsonDiff(a interface{}, b interface{}, path []string, diffs *Diffs) {
 		case map[string]interface{}:
 			switch bVal := b.(type) {
 			case map[string]interface{}:
-				for k, aSub := range aVal {
-					JsonDiff(aSub, bVal[k], append(path, fmt.Sprintf(`["%s"]`, k)), diffs)
+				aKeys := MapKeys(aVal)
+				sort.Strings(aKeys)
+				for _, k := range aKeys {
+					JsonDiff(aVal[k], bVal[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
 				}
-				for k, bSub := range bVal {
+				bKeys := MapKeys(bVal)
+				sort.Strings(bKeys)
+				for _, k := range bKeys {
 					if _, ok := aVal[k]; !ok {
-						diffs.Add(&JDiff{Type: DiffTypeAdd, New: bSub, Path: append(path, fmt.Sprintf(`["%s"]`, k))})
+						diffs.Add(&JDiff{Type: DiffTypeAdd, New: bVal[k], Path: append(path, fmt.Sprintf(`%s`, k))})
 					}
 				}
 			default:
@@ -49,7 +54,7 @@ func JsonDiff(a interface{}, b interface{}, path []string, diffs *Diffs) {
 					minLength = len(bVal)
 				}
 				for i, aSub := range aVal {
-					newPath := append(path, fmt.Sprintf("[%d]", i))
+					newPath := append(path, fmt.Sprintf("%d", i))
 					if i >= len(aVal) {
 						diffs.Add(&JDiff{Type: DiffTypeAdd, New: bVal[i], Path: newPath})
 					} else if i >= len(bVal) {
