@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"sort"
 )
 
@@ -27,7 +28,23 @@ func JsonDiff(a interface{}, b interface{}) *Diffs {
 	return diffs
 }
 
-func JsonDiffHelper(a interface{}, b interface{}, path []string, diffs *Diffs) {
+func CopySlice(s []string) []string {
+	out := make([]string, len(s))
+	for i, x := range s {
+		out[i] = x
+	}
+	return out
+}
+
+func JsonDiffHelper(a interface{}, b interface{}, pathContext []string, diffs *Diffs) {
+	// make a copy to avoid aliasing
+	//path := CopySlice(pathContext)
+	//path := append([]string{}, pathContext...) // TODO this doesn't seem to make a deep copy?
+	path := make([]string, len(pathContext))
+	copy(path, pathContext)
+
+	logrus.Debugf("path: %+v", path)
+
 	if a == nil && b != nil {
 		diffs.Add(&JDiff{Type: DiffTypeAdd, Old: a, New: b, Path: path})
 	} else if b == nil {

@@ -3,7 +3,6 @@ package schema_json
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -34,6 +33,56 @@ type SwaggerProperty struct {
 	XKubernetesPatchStrategy string   `json:"x-kubernetes-patch-strategy,omitempty"`
 }
 
+func AddKey(dict map[string]bool, key string) map[string]bool {
+	out := map[string]bool{}
+	for k, v := range dict {
+		out[k] = v
+	}
+	out[key] = true
+	return out
+}
+
+func (s *SwaggerProperty) Resolve(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
+	logrus.Debugf("resolve property path: %+v", path)
+	out := map[string]interface{}{}
+	if s.Description != "" {
+		out["description"] = s.Description
+	}
+	if s.Format != "" {
+		out["format"] = s.Format
+	}
+	if s.Items != nil {
+		items := map[string]interface{}{}
+		if s.Items.Format != "" {
+			items["format"] = s.Items.Format
+		}
+		if s.Items.Ref != "" {
+			typeName, resolvedType := resolve(s.Items.Ref)
+			if !inProgress[typeName] {
+				items["$ref"] = resolvedType.Resolve(resolve, append(path, "items", "$ref", s.Items.Ref), AddKey(inProgress, typeName))
+			} else {
+				items["$ref"] = "(circular)"
+			}
+		}
+		if s.Items.Type != "" {
+			items["type"] = s.Items.Type
+		}
+		out["items"] = items
+	}
+	if s.Ref != "" {
+		typeName, resolvedType := resolve(s.Ref)
+		if !inProgress[typeName] {
+			out["$ref"] = resolvedType.Resolve(resolve, append(path, "$ref", s.Ref), AddKey(inProgress, typeName))
+		} else {
+			out["$ref"] = "(circular)"
+		}
+	}
+	if s.Type != "" {
+		out["type"] = s.Type
+	}
+	return out
+}
+
 type SwaggerDefinition struct {
 	Description                 string                      `json:"description,omitempty"`
 	Format                      string                      `json:"format,omitempty"`
@@ -48,6 +97,34 @@ type SwaggerDefinition struct {
 	XKubernetesUnions []map[string]interface{} `json:"x-kubernetes-unions,omitempty"`
 }
 
+func (s *SwaggerDefinition) Resolve(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
+	if len(path) > 100 {
+		panic("TODO")
+	}
+	logrus.Debugf("resolve definition path: %+v", path)
+	out := map[string]interface{}{}
+	if s.Description != "" {
+		out["description"] = s.Description
+	}
+	if s.Format != "" {
+		out["format"] = s.Format
+	}
+	if len(s.Properties) > 0 {
+		properties := map[string]interface{}{}
+		for propName, property := range s.Properties {
+			properties[propName] = property.Resolve(resolve, append(path, "properties", propName), inProgress)
+		}
+		out["properties"] = properties
+	}
+	if s.Required != nil {
+		out["required"] = s.Required
+	}
+	if s.Type != "" {
+		out["type"] = s.Type
+	}
+	return out
+}
+
 type SwaggerSpec struct {
 	Definitions map[string]*SwaggerDefinition `json:"definitions"`
 	Info        struct {
@@ -60,13 +137,19 @@ type SwaggerSpec struct {
 	//SecurityDefinitions int
 }
 
-func (s *SwaggerSpec) ResolveRef(ref string) *SwaggerDefinition {
+func (s *SwaggerSpec) ResolveRef(ref string) (string, *SwaggerDefinition) {
 	typeName := ParseRef(ref)
 	resolvedType, ok := s.Definitions[typeName]
 	if !ok {
 		panic(errors.Errorf("unable to resolve type %s", ref))
 	}
-	return resolvedType
+
+	return typeName, resolvedType
+
+	//jsonBlob, err := utils.JsonRemarshal(resolvedType)
+	//utils.DoOrDie(err)
+	//
+	//return s.ResolveAllRefsToJsonBlobHelper(jsonBlob, []string{})
 }
 
 func (s *SwaggerSpec) DefinitionsByName() map[string]map[string]*SwaggerDefinition {
@@ -74,7 +157,7 @@ func (s *SwaggerSpec) DefinitionsByName() map[string]map[string]*SwaggerDefiniti
 		s.definitionsByNameCache = map[string]map[string]*SwaggerDefinition{}
 		for name, def := range s.Definitions {
 			if len(def.XKubernetesGroupVersionKind) != 1 {
-				logrus.Infof("skipping type %s, has multiple groupversionkind", name)
+				logrus.Debugf("skipping type %s, has %d groupversionkinds", name, len(def.XKubernetesGroupVersionKind))
 				continue
 			}
 			gvk := def.XKubernetesGroupVersionKind[0]
@@ -95,6 +178,22 @@ func (s *SwaggerSpec) VersionKindLengths() []string {
 	return lengths
 }
 
+func (s *SwaggerSpec) ResolveAll() map[string]interface{} {
+	out := map[string]interface{}{}
+	for name, def := range s.Definitions {
+		out[name] = def.Resolve(s.ResolveRef, []string{"definitions", name}, map[string]bool{})
+	}
+	return out
+}
+
+func (s *SwaggerSpec) Resolve(name string) map[string]interface{} {
+	out := map[string]interface{}{}
+	for groupName, def := range s.DefinitionsByName()[name] {
+		out[groupName] = def.Resolve(s.ResolveRef, []string{groupName, name}, map[string]bool{})
+	}
+	return out
+}
+
 func ParseRef(ref string) string {
 	pieces := strings.Split(ref, "/")
 	if len(pieces) != 3 {
@@ -103,53 +202,54 @@ func ParseRef(ref string) string {
 	return pieces[2]
 }
 
-func (s *SwaggerSpec) ResolveAllRefsToJsonBlob() interface{} {
-	jsonObject, err := utils.JsonRemarshal(s)
-	utils.DoOrDie(err)
+//func (s *SwaggerSpec) ResolveAllRefsToJsonBlob() interface{} {
+//	jsonObject, err := utils.JsonRemarshal(s)
+//	utils.DoOrDie(err)
+//
+//	return s.ResolveAllRefsToJsonBlobHelper(jsonObject, []string{})
+//}
 
-	return s.ResolveAllRefsToJsonBlobHelper(jsonObject, []string{})
-}
-
-func (s *SwaggerSpec) ResolveAllRefsToJsonBlobHelper(obj interface{}, path []string) interface{} {
-	if obj == nil {
-		return nil
-	}
-	switch o := obj.(type) {
-	case map[string]interface{}:
-		out := map[string]interface{}{}
-		for k, v := range o {
-			if k == "$ref" {
-				switch refType := v.(type) {
-				case string:
-					out[k] = s.ResolveRef(refType)
-				case map[string]interface{}:
-					// TODO special case?  nothing to do for now
-					out[k] = v
-				default:
-					panic(errors.Errorf("unable to handle type %T", v))
-				}
-			} else {
-				out[k] = s.ResolveAllRefsToJsonBlobHelper(v, append(path, k))
-			}
-		}
-		return out
-	case []interface{}:
-		var out []interface{}
-		for i, v := range o {
-			out = append(out, s.ResolveAllRefsToJsonBlobHelper(v, append(path, fmt.Sprintf("%d", i))))
-		}
-		return out
-	case int:
-		return o
-	case string:
-		return o
-	case bool:
-		return o
-	//case types.Nil: // TODO is this necessary?
-	default:
-		panic(errors.Errorf("unrecognized type: %s, %T, %+v", path, o, o))
-	}
-}
+//func (s *SwaggerSpec) ResolveAllRefsToJsonBlobHelper(obj interface{}, path []string) interface{} {
+//	if obj == nil {
+//		return nil
+//	}
+//	switch o := obj.(type) {
+//	case map[string]interface{}:
+//		out := map[string]interface{}{}
+//		for k, v := range o {
+//			if k == "$ref" {
+//				logrus.Infof("found a $ref at %+v: %+v", path, v)
+//				switch refType := v.(type) {
+//				case string:
+//					out[k] = s.ResolveRef(refType)
+//				case map[string]interface{}:
+//					// TODO special case?  nothing to do for now
+//					out[k] = v
+//				default:
+//					panic(errors.Errorf("unable to handle type %T", v))
+//				}
+//			} else {
+//				out[k] = s.ResolveAllRefsToJsonBlobHelper(v, append(path, k))
+//			}
+//		}
+//		return out
+//	case []interface{}:
+//		var out []interface{}
+//		for i, v := range o {
+//			out = append(out, s.ResolveAllRefsToJsonBlobHelper(v, append(path, fmt.Sprintf("%d", i))))
+//		}
+//		return out
+//	case int:
+//		return o
+//	case string:
+//		return o
+//	case bool:
+//		return o
+//	//case types.Nil: // TODO is this necessary?
+//	default:
+//		panic(errors.Errorf("unrecognized type: %s, %T, %+v", path, o, o))
+//	}
+//}
 
 func ReadSwaggerSpecs(path string) (*SwaggerSpec, error) {
 	in, err := ioutil.ReadFile(path)

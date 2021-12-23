@@ -36,6 +36,13 @@ func Executable() {
 	}
 }
 
+func StringPrefix(s string, chars int) string {
+	if len(s) <= chars {
+		return s
+	}
+	return s[:chars]
+}
+
 func RunDiff() {
 	path1, path2 := os.Args[1], os.Args[2]
 
@@ -61,35 +68,74 @@ func RunDiff() {
 			fmt.Printf("%s at %+v\n", d.Type, d.Path)
 		}
 
-		resolved1 := swaggerSpec1.ResolveAllRefsToJsonBlob()
-		resolved2 := swaggerSpec2.ResolveAllRefsToJsonBlob()
-		utils.DoOrDie(utils.WriteJson("./resolved-1.json", resolved1))
-		utils.DoOrDie(utils.WriteJson("./resolved-2.json", resolved2))
-		resolvedDiffs := utils.JsonDiff(
-			utils.MustJsonRemarshal(resolved1),
-			utils.MustJsonRemarshal(resolved2))
-		for _, d := range resolvedDiffs.Elements {
-			fmt.Printf("resolved: %s at %+v\n", d.Type, d.Path)
-		}
-
-		for name, groups1 := range swaggerSpec1.DefinitionsByName() {
-			if groups2, ok := swaggerSpec2.DefinitionsByName()[name]; ok {
-				for group1, def1 := range groups1 {
-					for group2, def2 := range groups2 {
-						fmt.Printf("comparing: %s (%s vs. %s)", name, group1, group2)
-						json1, err := utils.JsonRemarshal(def1)
-						utils.DoOrDie(err)
-						json2, err := utils.JsonRemarshal(def2)
-						utils.DoOrDie(err)
-						for _, e := range utils.JsonDiff(json1, json2).Elements {
-							fmt.Printf("  %s at %+v\n", e.Type, e.Path)
-						}
-						fmt.Println()
-					}
-					fmt.Println()
+		if false {
+			resolved1 := swaggerSpec1.ResolveAll()
+			resolved2 := swaggerSpec2.ResolveAll()
+			utils.DoOrDie(utils.WriteJson("./resolved-1.json", resolved1))
+			utils.DoOrDie(utils.WriteJson("./resolved-2.json", resolved2))
+			resolvedDiffs := utils.JsonDiff(
+				utils.MustJsonRemarshal(resolved1),
+				utils.MustJsonRemarshal(resolved2))
+			for _, d := range resolvedDiffs.Elements {
+				if d.Path[len(d.Path)-1] != "description" && len(fmt.Sprintf("%s", d.Old)) < 30 && len(fmt.Sprintf("%s", d.New)) < 30 {
+					fmt.Printf("resolved: %s at %+v (%s vs. %s)\n", d.Type, d.Path, d.Old, d.New)
+				} else {
+					fmt.Printf("resolved: %s at %+v\n", d.Type, d.Path)
 				}
 			}
-			fmt.Println()
+		}
+
+		typeNames := map[string]bool{}
+		for name := range swaggerSpec1.DefinitionsByName() {
+			typeNames[name] = true
+		}
+		for name := range swaggerSpec2.DefinitionsByName() {
+			typeNames[name] = true
+		}
+
+		typeNames = map[string]bool{"CustomResourceDefinition": true}
+		//os.MkdirAll()
+
+		//logrus.SetLevel(logrus.DebugLevel)
+
+		for typeName := range typeNames {
+			fmt.Printf("inspecting type %s\n", typeName)
+			resolved1 := swaggerSpec1.Resolve(typeName)
+			//bs, err := utils.MarshalIndent(ingress1, "", "  ")
+			//utils.DoOrDie(err)
+			//utils.DoOrDie(utils.WriteJson("./ingress1.json", ingress1))
+			//fmt.Printf("%s\n", bs)
+
+			resolved2 := swaggerSpec2.Resolve(typeName)
+			//utils.DoOrDie(utils.WriteJson("./ingress2.json", ingress2))
+
+			for groupName1, type1 := range resolved1 {
+				for groupName2, type2 := range resolved2 {
+					fmt.Printf("comparing %s: %s vs. %s\n", typeName, groupName1, groupName2)
+					for _, e := range utils.JsonDiff(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
+						//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
+						//	e.Type,
+						//	e.Path,
+						//	StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
+						//	StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
+						if len(e.Path) > 0 && e.Path[len(e.Path)-1] != "description" {
+							fmt.Printf("  %s at %+v\n", e.Type, e.Path)
+						} else {
+							//fmt.Printf("  skipping -- description\n")
+						}
+					}
+					fmt.Println()
+
+					//changes, err := diff.Diff(type1, type2)
+					//utils.DoOrDie(err)
+					//for _, change := range changes {
+					//	if len(change.Path) > 0 && change.Path[len(change.Path)-1] != "description" {
+					//		fmt.Printf("found a %s change: %+v\n", change.Type, change.Path)
+					//	}
+					//}
+					//fmt.Println("\n")
+				}
+			}
 		}
 	} else {
 		for _, change := range changelog {
