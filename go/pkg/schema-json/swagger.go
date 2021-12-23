@@ -200,3 +200,79 @@ func ReadSwaggerSpecs(path string) (*SwaggerSpec, error) {
 
 	return obj, errors.Wrapf(err, "unable to unmarshal json")
 }
+
+func (s *SwaggerSpec) AnalyzeType(typeName string) map[string]interface{} {
+	jsonBlob := s.ResolveToJsonBlob(typeName)
+	out := map[string]interface{}{}
+	for group, typeDef := range jsonBlob {
+		out[group] = analyzeTypeHelper("ingress", typeDef.(map[string]interface{}), []string{typeName, group})
+	}
+	return out
+}
+
+func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []string) interface{} {
+	path := make([]string, len(pathContext))
+	copy(path, pathContext)
+
+	logrus.Debugf("path: %+v", path)
+
+	if o["type"] == nil && o["$ref"] == nil {
+		panic(errors.Errorf("unable to parse type: nil type and ref (%+v)", o))
+	}
+	if o["type"] != nil && o["$ref"] != nil {
+		panic(errors.Errorf("unable to parse type: both type and ref non-nil (%+v)", o))
+	}
+	out := map[string]interface{}{}
+	//	"description": o["description"],
+	//}
+	var t string
+	if v, ok := o["type"]; ok {
+		t = v.(string)
+	}
+	var r map[string]interface{}
+	if v, ok := o["$ref"]; ok {
+		r = v.(map[string]interface{})
+	}
+	if t != "" {
+		switch t {
+		case "string":
+			return t
+		case "integer":
+			return t
+		case "boolean":
+			return t
+		case "object":
+			if v, ok := o["properties"]; ok {
+				for propName, property := range v.(map[string]interface{}) {
+					if _, ok := out[propName]; ok {
+						panic(errors.Errorf("duplicate property name: %s", propName))
+					}
+					out[propName] = analyzeTypeHelper(propName, property.(map[string]interface{}), append(path, propName))
+				}
+			}
+		case "array":
+			elementType := analyzeTypeHelper(name, o["items"].(map[string]interface{}), append(path, "items"))
+			out["type"] = "array"
+			out["elementType"] = elementType
+		default:
+			panic(errors.Errorf("TODO -- handle %s", o["type"]))
+		}
+	} else if r != nil {
+		resolved := analyzeTypeHelper(name, r, append(path, "$ref"))
+		switch resolvedType := resolved.(type) {
+		case string:
+			return resolvedType
+		case map[string]interface{}:
+			for k, v := range resolvedType {
+				if _, ok := out[k]; ok {
+					logrus.Debugf("skipping copy of property %s; already in outer layer", k)
+				} else {
+					out[k] = v
+				}
+			}
+		}
+	} else {
+		panic(errors.Errorf("shouldn't happen"))
+	}
+	return out
+}
