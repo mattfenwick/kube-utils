@@ -54,37 +54,37 @@ func (s *SwaggerAdditionalProperty) Compare(other *SwaggerAdditionalProperty) []
 	return changes
 }
 
-func (s *SwaggerProperty) Compare(other *SwaggerProperty) []*Change {
-	var changes []*Change
-
-	//if s.AdditionalProperties == nil && other.AdditionalProperties == nil {
-	//
-	//} else if s.AdditionalProperties == nil {
-	//
-	//} else if other.AdditionalProperties == nil {
-	//
-	//} else {
-	//
-	//}
-
-	if s.Description != other.Description {
-		changes = append(changes, &Change{FieldName: "Description", Old: s.Description, New: other.Description})
-	}
-	if s.Format != other.Format {
-		changes = append(changes, &Change{FieldName: "Format", Old: s.Format, New: other.Format})
-	}
-	if s.Ref != other.Ref {
-		changes = append(changes, &Change{FieldName: "Ref", Old: s.Ref, New: other.Ref})
-	}
-	if s.Type != other.Type {
-		changes = append(changes, &Change{FieldName: "Type", Old: s.Type, New: other.Type})
-	}
-	itemsDiff := utils.CompareMaps(s.Items, other.Items)
-	if !itemsDiff.IsSame() {
-		changes = append(changes, &Change{FieldName: "Items", Old: s.Items, New: other.Items, MapDiff: itemsDiff})
-	}
-	return changes
-}
+//func (s *SwaggerProperty) Compare(other *SwaggerProperty) []*Change {
+//	var changes []*Change
+//
+//	//if s.AdditionalProperties == nil && other.AdditionalProperties == nil {
+//	//
+//	//} else if s.AdditionalProperties == nil {
+//	//
+//	//} else if other.AdditionalProperties == nil {
+//	//
+//	//} else {
+//	//
+//	//}
+//
+//	if s.Description != other.Description {
+//		changes = append(changes, &Change{FieldName: "Description", Old: s.Description, New: other.Description})
+//	}
+//	if s.Format != other.Format {
+//		changes = append(changes, &Change{FieldName: "Format", Old: s.Format, New: other.Format})
+//	}
+//	if s.Ref != other.Ref {
+//		changes = append(changes, &Change{FieldName: "Ref", Old: s.Ref, New: other.Ref})
+//	}
+//	if s.Type != other.Type {
+//		changes = append(changes, &Change{FieldName: "Type", Old: s.Type, New: other.Type})
+//	}
+//	itemsDiff := utils.CompareMaps(s.Items, other.Items)
+//	if !itemsDiff.IsSame() {
+//		changes = append(changes, &Change{FieldName: "Items", Old: s.Items, New: other.Items, MapDiff: itemsDiff})
+//	}
+//	return changes
+//}
 
 //type SwaggerPropertyDiff struct {
 //	AdditionalProperties *SwaggerAdditionalPropertyDiff

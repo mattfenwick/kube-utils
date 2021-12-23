@@ -21,7 +21,13 @@ type JDiff struct {
 	New  interface{}
 }
 
-func JsonDiff(a interface{}, b interface{}, path []string, diffs *Diffs) {
+func JsonDiff(a interface{}, b interface{}) *Diffs {
+	diffs := &Diffs{}
+	JsonDiffHelper(a, b, []string{}, diffs)
+	return diffs
+}
+
+func JsonDiffHelper(a interface{}, b interface{}, path []string, diffs *Diffs) {
 	if a == nil && b != nil {
 		diffs.Add(&JDiff{Type: DiffTypeAdd, Old: a, New: b, Path: path})
 	} else if b == nil {
@@ -34,7 +40,7 @@ func JsonDiff(a interface{}, b interface{}, path []string, diffs *Diffs) {
 				aKeys := MapKeys(aVal)
 				sort.Strings(aKeys)
 				for _, k := range aKeys {
-					JsonDiff(aVal[k], bVal[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
+					JsonDiffHelper(aVal[k], bVal[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
 				}
 				bKeys := MapKeys(bVal)
 				sort.Strings(bKeys)
@@ -60,7 +66,7 @@ func JsonDiff(a interface{}, b interface{}, path []string, diffs *Diffs) {
 					} else if i >= len(bVal) {
 						diffs.Add(&JDiff{Type: DiffTypeRemove, Old: aSub, Path: newPath})
 					} else {
-						JsonDiff(aSub, bVal[i], newPath, diffs)
+						JsonDiffHelper(aSub, bVal[i], newPath, diffs)
 					}
 				}
 			default:
@@ -95,7 +101,7 @@ func JsonDiff(a interface{}, b interface{}, path []string, diffs *Diffs) {
 			}
 		//case types.Nil: // TODO is this necessary?
 		default:
-			panic(errors.Errorf("unrecognized type: %T", aVal))
+			panic(errors.Errorf("unrecognized type: %s, %T, %+v", path, aVal, aVal))
 		}
 	}
 }

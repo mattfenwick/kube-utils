@@ -45,8 +45,7 @@ func RunDiff() {
 	spec2 := map[string]interface{}{}
 	err = utils.ReadJson(path2, &spec2)
 	utils.DoOrDie(err)
-	diffs := &utils.Diffs{}
-	utils.JsonDiff(spec1, spec2, []string{}, diffs)
+	diffs := utils.JsonDiff(spec1, spec2)
 
 	swaggerSpec1, err := ReadSwaggerSpecs(path1)
 	utils.DoOrDie(err)
@@ -60,6 +59,37 @@ func RunDiff() {
 	if os.Args[3] == "true" {
 		for _, d := range diffs.Elements {
 			fmt.Printf("%s at %+v\n", d.Type, d.Path)
+		}
+
+		resolved1 := swaggerSpec1.ResolveAllRefsToJsonBlob()
+		resolved2 := swaggerSpec2.ResolveAllRefsToJsonBlob()
+		utils.DoOrDie(utils.WriteJson("./resolved-1.json", resolved1))
+		utils.DoOrDie(utils.WriteJson("./resolved-2.json", resolved2))
+		resolvedDiffs := utils.JsonDiff(
+			utils.MustJsonRemarshal(resolved1),
+			utils.MustJsonRemarshal(resolved2))
+		for _, d := range resolvedDiffs.Elements {
+			fmt.Printf("resolved: %s at %+v\n", d.Type, d.Path)
+		}
+
+		for name, groups1 := range swaggerSpec1.DefinitionsByName() {
+			if groups2, ok := swaggerSpec2.DefinitionsByName()[name]; ok {
+				for group1, def1 := range groups1 {
+					for group2, def2 := range groups2 {
+						fmt.Printf("comparing: %s (%s vs. %s)", name, group1, group2)
+						json1, err := utils.JsonRemarshal(def1)
+						utils.DoOrDie(err)
+						json2, err := utils.JsonRemarshal(def2)
+						utils.DoOrDie(err)
+						for _, e := range utils.JsonDiff(json1, json2).Elements {
+							fmt.Printf("  %s at %+v\n", e.Type, e.Path)
+						}
+						fmt.Println()
+					}
+					fmt.Println()
+				}
+			}
+			fmt.Println()
 		}
 	} else {
 		for _, change := range changelog {

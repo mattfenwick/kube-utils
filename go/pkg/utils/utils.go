@@ -47,10 +47,27 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	return destinationBuffer.Bytes(), nil
 }
 
+func JsonRemarshal(obj interface{}) (interface{}, error) {
+	bs, err := MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	var out interface{}
+	err = json.Unmarshal(bs, &out)
+	return out, errors.Wrapf(err, "unable to unmarshal json")
+}
+
+func MustJsonRemarshal(obj interface{}) interface{} {
+	out, err := JsonRemarshal(obj)
+	DoOrDie(err)
+	return out
+}
+
 func WriteJson(path string, obj interface{}) error {
 	bs, err := MarshalIndent(obj, "", "  ")
 	if err != nil {
-		return errors.Wrapf(err, "unable to marshal json")
+		return err
 	}
 
 	err = ioutil.WriteFile(path, bs, 0644)
@@ -58,7 +75,8 @@ func WriteJson(path string, obj interface{}) error {
 }
 
 // JsonUnmarshalMarshal is used to get keys from a struct into a sorted order.
-//   See JsonUnmarshalMarshal.  Apparently, golang's json library sorts keys from
+//   See https://stackoverflow.com/a/61887446/894284.
+//   Apparently, golang's json library sorts keys from
 //   maps, but NOT from structs.  So this function works by reading json into a
 //   generic structure of maps, then marshaling back into completely sorted json.
 func JsonUnmarshalMarshal(path string) error {
