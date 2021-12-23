@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"regexp"
+	"sigs.k8s.io/yaml"
 	"sort"
 	"strings"
 )
@@ -16,9 +17,12 @@ import (
 func Executable() {
 	//mode := "find-by-path-nested-items"
 	//mode := "parse"
-	mode := "diff"
+	//mode := "diff"
+	mode := "resolve"
 
 	switch mode {
+	case "resolve":
+		RunResolve()
 	case "diff":
 		RunDiff()
 	case "parse":
@@ -30,16 +34,113 @@ func Executable() {
 		RunFindByPath()
 	case "find-by-regex":
 		RunFindByRegex()
+	default:
+		panic("invalid mode")
 	}
+}
+
+func analyzeType(name string, o map[string]interface{}, pathContext []string) interface{} {
+	path := make([]string, len(pathContext))
+	copy(path, pathContext)
+
+	logrus.Infof("path: %+v", path)
+
+	if o["type"] == nil && o["$ref"] == nil {
+		panic(errors.Errorf("unable to parse type: nil type and ref (%+v)", o))
+	}
+	if o["type"] != nil && o["$ref"] != nil {
+		panic(errors.Errorf("unable to parse type: both type and ref non-nil (%+v)", o))
+	}
+	out := map[string]interface{}{}
+	//	"description": o["description"],
+	//}
+	var t string
+	if v, ok := o["type"]; ok {
+		t = v.(string)
+	}
+	var r map[string]interface{}
+	if v, ok := o["$ref"]; ok {
+		r = v.(map[string]interface{})
+	}
+	if t != "" {
+		switch t {
+		case "string":
+			fmt.Printf("%s: string\n", name)
+			return t
+		case "integer":
+			fmt.Printf("%s: integer\n", name)
+			return t
+		case "boolean":
+			fmt.Printf("%s: boolean\n", name)
+			return t
+		case "object":
+			if v, ok := o["properties"]; ok {
+				for propName, property := range v.(map[string]interface{}) {
+					if _, ok := out[propName]; ok {
+						panic(errors.Errorf("duplicate property name: %s", propName))
+					}
+					out[propName] = analyzeType(propName, property.(map[string]interface{}), append(path, propName))
+				}
+			}
+		case "array":
+			elementType := analyzeType(name, o["items"].(map[string]interface{}), append(path, "items"))
+			fmt.Printf("%s: array of (%+v)\n", name, elementType)
+			out["type"] = "array"
+			out["elementType"] = elementType
+		default:
+			panic(errors.Errorf("TODO -- handle %s", o["type"]))
+		}
+	} else if r != nil {
+		resolved := analyzeType(name, r, append(path, "$ref"))
+		switch resolvedType := resolved.(type) {
+		case string:
+			return resolvedType
+		case map[string]interface{}:
+			for k, v := range resolvedType {
+				if _, ok := out[k]; ok {
+					logrus.Infof("skipping copy of property %s; already in outer layer", k)
+				} else {
+					out[k] = v
+				}
+			}
+		}
+	} else {
+		panic(errors.Errorf("shouldn't happen"))
+	}
+	return out
+}
+
+func RunResolve() {
+	path := os.Args[1]
+	swaggerSpec, err := ReadSwaggerSpecs(path)
+	utils.DoOrDie(err)
+
+	typeName := "Ingress"
+
+	ingressBlob := swaggerSpec.ResolveToJsonBlob(typeName)
+
+	bs, err := utils.MarshalIndent(ingressBlob, "", "  ")
+	utils.DoOrDie(err)
+	fmt.Printf("%s\n", bs)
+
+	analysis := analyzeType("ingress", ingressBlob["networking.k8s.io.v1beta1"].(map[string]interface{}), []string{"ingress"})
+	analysisBs, err := utils.MarshalIndent(analysis, "", "  ")
+	utils.DoOrDie(err)
+	fmt.Printf("analysis:\n%s\n", analysisBs)
+
+	yamlBytes, err := yaml.JSONToYAML(analysisBs)
+	utils.DoOrDie(err)
+
+	fmt.Printf("\n\n%s\n", yamlBytes)
 }
 
 func RunDiff() {
 	path1, path2 := os.Args[1], os.Args[2]
 
-	var spec1 interface{}
-	utils.DoOrDie(utils.ReadJson(path1, &spec1))
-	var spec2 interface{}
-	utils.DoOrDie(utils.ReadJson(path2, &spec2))
+	//var spec1 interface{}
+	//utils.DoOrDie(utils.ReadJson(path1, &spec1))
+	//var spec2 interface{}
+	//utils.DoOrDie(utils.ReadJson(path2, &spec2))
 
 	swaggerSpec1, err := ReadSwaggerSpecs(path1)
 	utils.DoOrDie(err)
