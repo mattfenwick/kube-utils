@@ -3,6 +3,7 @@ package schema_json
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -33,16 +34,7 @@ type SwaggerProperty struct {
 	XKubernetesPatchStrategy string   `json:"x-kubernetes-patch-strategy,omitempty"`
 }
 
-func AddKey(dict map[string]bool, key string) map[string]bool {
-	out := map[string]bool{}
-	for k, v := range dict {
-		out[k] = v
-	}
-	out[key] = true
-	return out
-}
-
-func (s *SwaggerProperty) Resolve(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
+func (s *SwaggerProperty) ResolveToJsonBlob(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
 	logrus.Debugf("resolve property path: %+v", path)
 	out := map[string]interface{}{}
 	if s.Description != "" {
@@ -59,7 +51,7 @@ func (s *SwaggerProperty) Resolve(resolve func(string) (string, *SwaggerDefiniti
 		if s.Items.Ref != "" {
 			typeName, resolvedType := resolve(s.Items.Ref)
 			if !inProgress[typeName] {
-				items["$ref"] = resolvedType.Resolve(resolve, append(path, "items", "$ref", s.Items.Ref), AddKey(inProgress, typeName))
+				items["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "items", "$ref", s.Items.Ref), utils.AddKey(inProgress, typeName))
 			} else {
 				items["$ref"] = "(circular)"
 			}
@@ -72,7 +64,7 @@ func (s *SwaggerProperty) Resolve(resolve func(string) (string, *SwaggerDefiniti
 	if s.Ref != "" {
 		typeName, resolvedType := resolve(s.Ref)
 		if !inProgress[typeName] {
-			out["$ref"] = resolvedType.Resolve(resolve, append(path, "$ref", s.Ref), AddKey(inProgress, typeName))
+			out["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "$ref", s.Ref), utils.AddKey(inProgress, typeName))
 		} else {
 			out["$ref"] = "(circular)"
 		}
@@ -97,7 +89,7 @@ type SwaggerDefinition struct {
 	XKubernetesUnions []map[string]interface{} `json:"x-kubernetes-unions,omitempty"`
 }
 
-func (s *SwaggerDefinition) Resolve(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
+func (s *SwaggerDefinition) ResolveToJsonBlob(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
 	if len(path) > 100 {
 		panic("TODO")
 	}
@@ -112,7 +104,7 @@ func (s *SwaggerDefinition) Resolve(resolve func(string) (string, *SwaggerDefini
 	if len(s.Properties) > 0 {
 		properties := map[string]interface{}{}
 		for propName, property := range s.Properties {
-			properties[propName] = property.Resolve(resolve, append(path, "properties", propName), inProgress)
+			properties[propName] = property.ResolveToJsonBlob(resolve, append(path, "properties", propName), inProgress)
 		}
 		out["properties"] = properties
 	}
@@ -147,7 +139,7 @@ func (s *SwaggerSpec) ResolveRef(ref string) (string, *SwaggerDefinition) {
 	return typeName, resolvedType
 }
 
-func (s *SwaggerSpec) DefinitionsByName() map[string]map[string]*SwaggerDefinition {
+func (s *SwaggerSpec) DefinitionsByNameByGroup() map[string]map[string]*SwaggerDefinition {
 	if s.definitionsByNameCache == nil {
 		s.definitionsByNameCache = map[string]map[string]*SwaggerDefinition{}
 		for name, def := range s.Definitions {
@@ -173,18 +165,18 @@ func (s *SwaggerSpec) VersionKindLengths() []string {
 	return lengths
 }
 
-func (s *SwaggerSpec) ResolveAll() map[string]interface{} {
+func (s *SwaggerSpec) ResolveAllToJsonBlob() map[string]interface{} {
 	out := map[string]interface{}{}
 	for name, def := range s.Definitions {
-		out[name] = def.Resolve(s.ResolveRef, []string{"definitions", name}, map[string]bool{})
+		out[name] = def.ResolveToJsonBlob(s.ResolveRef, []string{"definitions", name}, map[string]bool{})
 	}
 	return out
 }
 
-func (s *SwaggerSpec) Resolve(name string) map[string]interface{} {
+func (s *SwaggerSpec) ResolveToJsonBlob(name string) map[string]interface{} {
 	out := map[string]interface{}{}
-	for groupName, def := range s.DefinitionsByName()[name] {
-		out[groupName] = def.Resolve(s.ResolveRef, []string{groupName, name}, map[string]bool{})
+	for groupName, def := range s.DefinitionsByNameByGroup()[name] {
+		out[groupName] = def.ResolveToJsonBlob(s.ResolveRef, []string{groupName, name}, map[string]bool{})
 	}
 	return out
 }

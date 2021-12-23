@@ -36,13 +36,6 @@ func Executable() {
 	}
 }
 
-func StringPrefix(s string, chars int) string {
-	if len(s) <= chars {
-		return s
-	}
-	return s[:chars]
-}
-
 func RunDiff() {
 	path1, path2 := os.Args[1], os.Args[2]
 
@@ -69,8 +62,8 @@ func RunDiff() {
 		}
 
 		if false {
-			resolved1 := swaggerSpec1.ResolveAll()
-			resolved2 := swaggerSpec2.ResolveAll()
+			resolved1 := swaggerSpec1.ResolveAllToJsonBlob()
+			resolved2 := swaggerSpec2.ResolveAllToJsonBlob()
 			utils.DoOrDie(utils.WriteJson("./resolved-1.json", resolved1))
 			utils.DoOrDie(utils.WriteJson("./resolved-2.json", resolved2))
 			resolvedDiffs := utils.DiffJsonValues(
@@ -86,10 +79,10 @@ func RunDiff() {
 		}
 
 		typeNames := map[string]bool{}
-		for name := range swaggerSpec1.DefinitionsByName() {
+		for name := range swaggerSpec1.DefinitionsByNameByGroup() {
 			typeNames[name] = true
 		}
-		for name := range swaggerSpec2.DefinitionsByName() {
+		for name := range swaggerSpec2.DefinitionsByNameByGroup() {
 			typeNames[name] = true
 		}
 
@@ -100,13 +93,13 @@ func RunDiff() {
 
 		for typeName := range typeNames {
 			fmt.Printf("inspecting type %s\n", typeName)
-			resolved1 := swaggerSpec1.Resolve(typeName)
+			resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
 			//bs, err := utils.MarshalIndent(ingress1, "", "  ")
 			//utils.DoOrDie(err)
 			//utils.DoOrDie(utils.WriteJson("./ingress1.json", ingress1))
 			//fmt.Printf("%s\n", bs)
 
-			resolved2 := swaggerSpec2.Resolve(typeName)
+			resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
 			//utils.DoOrDie(utils.WriteJson("./ingress2.json", ingress2))
 
 			for groupName1, type1 := range resolved1 {
@@ -116,8 +109,8 @@ func RunDiff() {
 						//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
 						//	e.Type,
 						//	e.Path,
-						//	StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
-						//	StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
+						//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
+						//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
 						if len(e.Path) > 0 && e.Path[len(e.Path)-1] != "description" {
 							fmt.Printf("  %s at %+v\n", e.Type, e.Path)
 						} else {
