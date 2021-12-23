@@ -1,15 +1,12 @@
 package schema_json
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
-	"github.com/r3labs/diff/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"sort"
@@ -39,104 +36,52 @@ func Executable() {
 func RunDiff() {
 	path1, path2 := os.Args[1], os.Args[2]
 
-	spec1 := map[string]interface{}{}
-	err := utils.ReadJson(path1, &spec1)
-	utils.DoOrDie(err)
-	spec2 := map[string]interface{}{}
-	err = utils.ReadJson(path2, &spec2)
-	utils.DoOrDie(err)
-	diffs := utils.DiffJsonValues(spec1, spec2)
+	var spec1 interface{}
+	utils.DoOrDie(utils.ReadJson(path1, &spec1))
+	var spec2 interface{}
+	utils.DoOrDie(utils.ReadJson(path2, &spec2))
 
 	swaggerSpec1, err := ReadSwaggerSpecs(path1)
 	utils.DoOrDie(err)
 	swaggerSpec2, err := ReadSwaggerSpecs(path2)
 	utils.DoOrDie(err)
 
-	// TODO this library only seems to report leaf properties that have been removed, even if whole branches are gone
-	changelog, err := diff.Diff(swaggerSpec1, swaggerSpec2)
-	utils.DoOrDie(err)
-
-	if os.Args[3] == "true" {
-		for _, d := range diffs.Elements {
-			fmt.Printf("%s at %+v\n", d.Type, d.Path)
+	typeNames := map[string]bool{}
+	if len(os.Args) > 3 {
+		for _, name := range strings.Split(os.Args[3], ",") {
+			typeNames[name] = true
 		}
-
-		if false {
-			resolved1 := swaggerSpec1.ResolveAllToJsonBlob()
-			resolved2 := swaggerSpec2.ResolveAllToJsonBlob()
-			utils.DoOrDie(utils.WriteJson("./resolved-1.json", resolved1))
-			utils.DoOrDie(utils.WriteJson("./resolved-2.json", resolved2))
-			resolvedDiffs := utils.DiffJsonValues(
-				utils.MustJsonRemarshal(resolved1),
-				utils.MustJsonRemarshal(resolved2))
-			for _, d := range resolvedDiffs.Elements {
-				if d.Path[len(d.Path)-1] != "description" && len(fmt.Sprintf("%s", d.Old)) < 30 && len(fmt.Sprintf("%s", d.New)) < 30 {
-					fmt.Printf("resolved: %s at %+v (%s vs. %s)\n", d.Type, d.Path, d.Old, d.New)
-				} else {
-					fmt.Printf("resolved: %s at %+v\n", d.Type, d.Path)
-				}
-			}
-		}
-
-		typeNames := map[string]bool{}
+	} else {
 		for name := range swaggerSpec1.DefinitionsByNameByGroup() {
 			typeNames[name] = true
 		}
 		for name := range swaggerSpec2.DefinitionsByNameByGroup() {
 			typeNames[name] = true
 		}
+	}
 
-		typeNames = map[string]bool{"CustomResourceDefinition": true}
-		//os.MkdirAll()
+	for typeName := range typeNames {
+		fmt.Printf("inspecting type %s\n", typeName)
 
-		//logrus.SetLevel(logrus.DebugLevel)
+		resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
+		resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
 
-		for typeName := range typeNames {
-			fmt.Printf("inspecting type %s\n", typeName)
-			resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
-			//bs, err := utils.MarshalIndent(ingress1, "", "  ")
-			//utils.DoOrDie(err)
-			//utils.DoOrDie(utils.WriteJson("./ingress1.json", ingress1))
-			//fmt.Printf("%s\n", bs)
-
-			resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
-			//utils.DoOrDie(utils.WriteJson("./ingress2.json", ingress2))
-
-			for groupName1, type1 := range resolved1 {
-				for groupName2, type2 := range resolved2 {
-					fmt.Printf("comparing %s: %s vs. %s\n", typeName, groupName1, groupName2)
-					for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
-						//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
-						//	e.Type,
-						//	e.Path,
-						//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
-						//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
-						if len(e.Path) > 0 && e.Path[len(e.Path)-1] != "description" {
-							fmt.Printf("  %s at %+v\n", e.Type, e.Path)
-						} else {
-							//fmt.Printf("  skipping -- description\n")
-						}
+		for groupName1, type1 := range resolved1 {
+			for groupName2, type2 := range resolved2 {
+				fmt.Printf("comparing %s: %s vs. %s\n", typeName, groupName1, groupName2)
+				for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
+					//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
+					//	e.Type,
+					//	e.Path,
+					//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
+					//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
+					if len(e.Path) > 0 && e.Path[len(e.Path)-1] != "description" {
+						fmt.Printf("  %s at %+v\n", e.Type, e.Path)
+					} else {
+						//fmt.Printf("  skipping -- description\n")
 					}
-					fmt.Println()
-
-					//changes, err := diff.Diff(type1, type2)
-					//utils.DoOrDie(err)
-					//for _, change := range changes {
-					//	if len(change.Path) > 0 && change.Path[len(change.Path)-1] != "description" {
-					//		fmt.Printf("found a %s change: %+v\n", change.Type, change.Path)
-					//	}
-					//}
-					//fmt.Println("\n")
 				}
-			}
-		}
-	} else {
-		for _, change := range changelog {
-			if change.Type == "update" && change.Path[len(change.Path)-1] == "Description" && strings.Contains(change.To.(string), "eprecate") {
-				// TODO this logic doesn't really work
-				fmt.Printf("found something getting deprecated: %+v\n", change.Path)
-			} else {
-				fmt.Printf("found a %s change: %+v\n", change.Type, change.Path)
+				fmt.Println()
 			}
 		}
 	}
@@ -269,13 +214,7 @@ func setupFindByRegexCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, as []string) {
 			args := &FindByRegexArgs{}
-
-			bytes, err := ioutil.ReadFile(configPath)
-			utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", configPath))
-
-			err = json.Unmarshal(bytes, &args)
-			utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
-
+			utils.DoOrDie(utils.ReadJson(configPath, &args))
 			RunFindInJsonByRegex(args)
 		},
 	}
@@ -297,8 +236,7 @@ func RunFindByRegex() {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	command := setupFindByRegexCommand()
-	err := errors.Wrapf(command.Execute(), "run root command")
-	utils.DoOrDie(err)
+	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root command"))
 }
 
 func RunFindInJsonByRegex(args *FindByRegexArgs) {
@@ -307,12 +245,9 @@ func RunFindInJsonByRegex(args *FindByRegexArgs) {
 	path := args.File
 	regexString := args.Regex
 
-	bytes, err := ioutil.ReadFile(path)
-	utils.DoOrDie(errors.Wrapf(err, "unable to read file %s", path))
-
 	var obj map[string]interface{}
-	err = json.Unmarshal(bytes, &obj)
-	utils.DoOrDie(errors.Wrapf(err, "unable to unmarshal json"))
+
+	utils.DoOrDie(utils.ReadJson(path, &obj))
 
 	re := regexp.MustCompile(regexString)
 	var matches []*KeyMatch
