@@ -105,3 +105,7 @@ func MapFilterEmptyValues(dict map[string]string) map[string]string {
 	}
 	return out
 }
+
+func Pointer(s string) *string {
+	return &s
+}

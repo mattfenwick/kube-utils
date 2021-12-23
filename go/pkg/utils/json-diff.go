@@ -7,11 +7,20 @@ import (
 	"sort"
 )
 
-type Diffs struct {
+type DiffType = string
+
+const (
+	DiffTypeAdd    DiffType = "DiffTypeAdd"
+	DiffTypeRemove DiffType = "DiffTypeRemove"
+	DiffTypeChange DiffType = "DiffTypeChange"
+	DiffTypeSame   DiffType = "DiffTypeSame"
+)
+
+type JsonDocumentDiffs struct {
 	Elements []*JDiff
 }
 
-func (d *Diffs) Add(e *JDiff) {
+func (d *JsonDocumentDiffs) Add(e *JDiff) {
 	d.Elements = append(d.Elements, e)
 }
 
@@ -22,8 +31,8 @@ type JDiff struct {
 	New  interface{}
 }
 
-func JsonDiff(a interface{}, b interface{}) *Diffs {
-	diffs := &Diffs{}
+func DiffJsonValues(a interface{}, b interface{}) *JsonDocumentDiffs {
+	diffs := &JsonDocumentDiffs{}
 	JsonDiffHelper(a, b, []string{}, diffs)
 	return diffs
 }
@@ -36,7 +45,7 @@ func CopySlice(s []string) []string {
 	return out
 }
 
-func JsonDiffHelper(a interface{}, b interface{}, pathContext []string, diffs *Diffs) {
+func JsonDiffHelper(a interface{}, b interface{}, pathContext []string, diffs *JsonDocumentDiffs) {
 	// make a copy to avoid aliasing
 	//path := CopySlice(pathContext)
 	//path := append([]string{}, pathContext...) // TODO this doesn't seem to make a deep copy?

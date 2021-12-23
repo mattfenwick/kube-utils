@@ -52,7 +52,7 @@ func RunDiff() {
 	spec2 := map[string]interface{}{}
 	err = utils.ReadJson(path2, &spec2)
 	utils.DoOrDie(err)
-	diffs := utils.JsonDiff(spec1, spec2)
+	diffs := utils.DiffJsonValues(spec1, spec2)
 
 	swaggerSpec1, err := ReadSwaggerSpecs(path1)
 	utils.DoOrDie(err)
@@ -73,7 +73,7 @@ func RunDiff() {
 			resolved2 := swaggerSpec2.ResolveAll()
 			utils.DoOrDie(utils.WriteJson("./resolved-1.json", resolved1))
 			utils.DoOrDie(utils.WriteJson("./resolved-2.json", resolved2))
-			resolvedDiffs := utils.JsonDiff(
+			resolvedDiffs := utils.DiffJsonValues(
 				utils.MustJsonRemarshal(resolved1),
 				utils.MustJsonRemarshal(resolved2))
 			for _, d := range resolvedDiffs.Elements {
@@ -112,7 +112,7 @@ func RunDiff() {
 			for groupName1, type1 := range resolved1 {
 				for groupName2, type2 := range resolved2 {
 					fmt.Printf("comparing %s: %s vs. %s\n", typeName, groupName1, groupName2)
-					for _, e := range utils.JsonDiff(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
+					for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
 						//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
 						//	e.Type,
 						//	e.Path,
