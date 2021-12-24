@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"regexp"
-	"sigs.k8s.io/yaml"
 	"sort"
 	"strings"
 )
@@ -45,18 +44,25 @@ func RunResolve() {
 	swaggerSpec, err := ReadSwaggerSpecs(path)
 	utils.DoOrDie(err)
 
+	showTable := false
+
 	analyses := swaggerSpec.AnalyzeType(typeName)
 
-	fmt.Printf("analyzing %s\n", typeName)
 	for group, analysis := range analyses {
-		analysisBs, err := utils.MarshalIndent(analysis, "", "  ")
-		utils.DoOrDie(err)
-		//fmt.Printf("%s analysis:\n%s\n", group, analysisBs)
+		//analysisBs, err := utils.MarshalIndent(analysis, "", "  ")
+		//utils.DoOrDie(err)
+		////fmt.Printf("%s analysis:\n%s\n", group, analysisBs)
+		//
+		//yamlBytes, err := yaml.JSONToYAML(analysisBs)
+		//utils.DoOrDie(err)
+		//
+		//fmt.Printf("\n%s.%s analysis:\n%s\n", group, typeName, yamlBytes)
 
-		yamlBytes, err := yaml.JSONToYAML(analysisBs)
-		utils.DoOrDie(err)
-
-		fmt.Printf("\n%s.%s analysis:\n%s\n", group, typeName, yamlBytes)
+		if showTable {
+			fmt.Printf("%s.%s:\n%s\n", group, typeName, SwaggerAnalysisTypeTable(analysis))
+		} else {
+			fmt.Printf("%s.%s:\n%s\n", group, typeName, strings.Join(SwaggerAnalysisTypeSummary(analysis), "\n"))
+		}
 	}
 }
 
