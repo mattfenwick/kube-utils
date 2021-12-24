@@ -19,14 +19,10 @@ func Executable() {
 
 	panic(3)
 
-	//mode := "find-by-path-nested-items"
 	//mode := "parse"
-	//mode := "diff"
 	mode := "resolve"
 
 	switch mode {
-	case "diff":
-		RunDiff()
 	case "parse":
 		RunParse()
 	case "find-by-path-nested-items":
@@ -38,60 +34,6 @@ func Executable() {
 		RunFindByRegex()
 	default:
 		panic("invalid mode")
-	}
-}
-
-func RunDiff() {
-	path1, path2 := os.Args[1], os.Args[2]
-
-	//var spec1 interface{}
-	//utils.DoOrDie(utils.ReadJson(path1, &spec1))
-	//var spec2 interface{}
-	//utils.DoOrDie(utils.ReadJson(path2, &spec2))
-
-	swaggerSpec1, err := ReadSwaggerSpecs(path1)
-	utils.DoOrDie(err)
-	swaggerSpec2, err := ReadSwaggerSpecs(path2)
-	utils.DoOrDie(err)
-
-	typeNames := map[string]bool{}
-	if len(os.Args) > 3 {
-		for _, name := range strings.Split(os.Args[3], ",") {
-			typeNames[name] = true
-		}
-	} else {
-		for name := range swaggerSpec1.DefinitionsByNameByGroup() {
-			typeNames[name] = true
-		}
-		for name := range swaggerSpec2.DefinitionsByNameByGroup() {
-			typeNames[name] = true
-		}
-	}
-
-	for typeName := range typeNames {
-		fmt.Printf("inspecting type %s\n", typeName)
-
-		resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
-		resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
-
-		for groupName1, type1 := range resolved1 {
-			for groupName2, type2 := range resolved2 {
-				fmt.Printf("comparing %s: %s vs. %s\n", typeName, groupName1, groupName2)
-				for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
-					//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
-					//	e.Type,
-					//	e.Path,
-					//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
-					//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
-					if len(e.Path) > 0 && e.Path[len(e.Path)-1] != "description" {
-						fmt.Printf("  %s at %+v\n", e.Type, e.Path)
-					} else {
-						//fmt.Printf("  skipping -- description\n")
-					}
-				}
-				fmt.Println()
-			}
-		}
 	}
 }
 
