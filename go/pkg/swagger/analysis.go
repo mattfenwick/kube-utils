@@ -16,10 +16,10 @@ func AnalysisTypeTable(o interface{}) string {
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
-	table.SetColMinWidth(0, 100)
-	table.SetHeader([]string{"Field", "Type"})
+	table.SetColMinWidth(1, 100)
+	table.SetHeader([]string{"Type", "Field"})
 	for _, values := range AnalysisGetTypes(o, []string{}) {
-		table.Append([]string{values[0], values[1]})
+		table.Append([]string{values[1], values[0]})
 	}
 	table.Render()
 	return tableString.String()
@@ -29,12 +29,10 @@ func AnalysisTypeSummary(obj interface{}) []string {
 	var lines []string
 	for _, t := range AnalysisGetTypes(obj, []string{}) {
 		chunks := strings.Split(t[0], ".")
-		lines = append(lines,
-			fmt.Sprintf(
-				"%s%s: %s",
-				strings.Repeat("  ", len(chunks)-1),
-				chunks[len(chunks)-1],
-				t[1]))
+		prefix := strings.Repeat("  ", len(chunks)-1)
+		typeString := fmt.Sprintf("%s%s", prefix, chunks[len(chunks)-1])
+		line := fmt.Sprintf("%-30s    %s", typeString, t[1])
+		lines = append(lines, line)
 	}
 	return lines
 }

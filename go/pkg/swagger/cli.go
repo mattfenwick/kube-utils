@@ -34,7 +34,7 @@ func setupRootCommand() *cobra.Command {
 type ExplainArgs struct {
 	Format        string
 	GroupVersions []string
-	TypeName      string
+	TypeNames     []string
 	Version       string
 }
 
@@ -52,8 +52,7 @@ func setupExplainCommand() *cobra.Command {
 
 	command.Flags().StringVar(&args.Format, "format", "condensed", "output format")
 	command.Flags().StringSliceVar(&args.GroupVersions, "group-version", []string{}, "group/versions to look for type under; looks under all if not specified")
-	command.Flags().StringVar(&args.TypeName, "type", "", "kubernetes type")
-	utils.DoOrDie(command.MarkFlagRequired("type"))
+	command.Flags().StringSliceVar(&args.TypeNames, "type", []string{}, "kubernetes types to explain")
 	command.Flags().StringVar(&args.Version, "version", "1.23.0", "kubernetes spec version")
 
 	return command
@@ -62,37 +61,58 @@ func setupExplainCommand() *cobra.Command {
 func RunExplain(args *ExplainArgs) {
 	// TODO either guarantee the data is present, or curl it
 	path := MakePathFromKubeVersion(args.Version)
-	typeName := args.TypeName
 
 	swaggerSpec, err := ReadSwaggerSpecs(path)
 	utils.DoOrDie(err)
 
-	analyses := swaggerSpec.AnalyzeType(typeName)
-
-	// no group/versions specified?  use them all
+	// no types specified?  use them all
 	//   otherwise, filter down to just the ones requested
-	if len(args.GroupVersions) > 0 {
-		filteredAnalyses := map[string]interface{}{}
-		for _, groupVersion := range args.GroupVersions {
-			if analysis, ok := analyses[groupVersion]; ok {
-				filteredAnalyses[groupVersion] = analysis
-			} else {
-				panic(errors.Errorf("type %s not found under group/version %s", args.TypeName, groupVersion))
-			}
+	var typeNames []string
+	if len(args.TypeNames) == 0 {
+		for name := range swaggerSpec.DefinitionsByNameByGroup() {
+			typeNames = append(typeNames, name)
 		}
-		analyses = filteredAnalyses
+		sort.Strings(typeNames)
+	} else {
+		typeNames = args.TypeNames // TODO should this be sorted, or respect the input order?
 	}
 
-	for _, groupVersion := range SortedKeys(analyses) {
-		analysis := analyses[groupVersion]
-		switch args.Format {
-		case "table":
-			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, AnalysisTypeTable(analysis))
-		case "condensed":
-			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(AnalysisTypeSummary(analysis), "\n"))
-		default:
-			panic(errors.Errorf("invalid output format: %s", args.Format))
+	for _, typeName := range typeNames {
+		logrus.Debugf("analysing type %s", typeName)
+		analyses := swaggerSpec.AnalyzeType(typeName)
+
+		// no group/versions specified?  use them all
+		//   otherwise, filter down to just the ones requested
+		if len(args.GroupVersions) > 0 {
+			filteredAnalyses := map[string]interface{}{}
+			for _, groupVersion := range args.GroupVersions {
+				if analysis, ok := analyses[groupVersion]; ok {
+					filteredAnalyses[groupVersion] = analysis
+				} else {
+					logrus.Debugf("type %s not found under group/version %s (%+v)", typeName, groupVersion, SortedKeys(analyses))
+				}
+			}
+			analyses = filteredAnalyses
 		}
+
+		gvks := SortedKeys(analyses)
+		if len(gvks) == 0 {
+			logrus.Debugf("no group/versions found for %s", typeName)
+			continue
+		}
+		for _, groupVersion := range gvks {
+			analysis := analyses[groupVersion]
+			switch args.Format {
+			case "table":
+				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, AnalysisTypeTable(analysis))
+			case "condensed":
+				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(AnalysisTypeSummary(analysis), "\n"))
+			default:
+				panic(errors.Errorf("invalid output format: %s", args.Format))
+			}
+			fmt.Println()
+		}
+		fmt.Println()
 	}
 }
 

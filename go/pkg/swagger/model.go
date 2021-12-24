@@ -151,7 +151,11 @@ func (s *Spec) DefinitionsByNameByGroup() map[string]map[string]*Definition {
 			if _, ok := s.definitionsByNameCache[gvk.Kind]; !ok {
 				s.definitionsByNameCache[gvk.Kind] = map[string]*Definition{}
 			}
-			s.definitionsByNameCache[gvk.Kind][gvk.Group+"."+gvk.Version] = def
+			gv := gvk.Version
+			if gvk.Group != "" {
+				gv = gvk.Group + "." + gv
+			}
+			s.definitionsByNameCache[gvk.Kind][gv] = def
 		}
 	}
 	return s.definitionsByNameCache
