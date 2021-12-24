@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"strings"
 )
@@ -20,7 +21,7 @@ func setupSwaggerCommand() *cobra.Command {
 		},
 	}
 
-	command.PersistentFlags().StringVarP(&verbosity, "verbosity", "v", "info", "log level; one of [info, debug, trace, warn, error, fatal, panic]")
+	command.PersistentFlags().StringVar(&verbosity, "log-level", "info", "log level; one of [trace, debug, info, warn, error, fatal, panic]")
 
 	command.AddCommand(setupSwaggerResolveCommand())
 	command.AddCommand(setupSwaggerCompareCommand())
@@ -94,8 +95,10 @@ func RunResolve(args *ResolveArgs) {
 
 type CompareArgs struct {
 	Versions []string
-	//GroupVersions []string
-	TypeNames []string
+	//GroupVersions []string // TODO ?
+	TypeNames        []string
+	SkipDescriptions bool
+	PrintValues      bool
 }
 
 func setupSwaggerCompareCommand() *cobra.Command {
@@ -116,6 +119,10 @@ func setupSwaggerCompareCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&args.Versions, "version", []string{"1.18.19", "1.23.0"}, "kubernetes versions")
 
 	command.Flags().StringSliceVar(&args.TypeNames, "type", []string{"Pod"}, "types to compare")
+
+	command.Flags().BoolVar(&args.SkipDescriptions, "skip-descriptions", true, "if true, skip comparing descriptions (since these often change for non-functional reasons)")
+
+	command.Flags().BoolVar(&args.PrintValues, "print-values", false, "if true, print values (in addition to just the path and change type)")
 
 	return command
 }
@@ -155,15 +162,13 @@ func RunCompare(args *CompareArgs) {
 			for groupName2, type2 := range resolved2 {
 				fmt.Printf("comparing %s: %s@%s vs. %s@%s\n", typeName, args.Versions[0], groupName1, args.Versions[1], groupName2)
 				for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
-					//fmt.Printf("  %s at %+v\n   - %s\n   - %s\n",
-					//	e.Type,
-					//	e.Path,
-					//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.Old), "\n", `\n`, -1), 25),
-					//	utils.StringPrefix(strings.Replace(fmt.Sprintf("%s", e.New), "\n", `\n`, -1), 25))
-					if len(e.Path) > 0 && e.Path[len(e.Path)-1] != "description" {
-						fmt.Printf("  %s at %+v\n", e.Type, e.Path)
+					if len(e.Path) > 0 && e.Path[len(e.Path)-1] == "description" && args.SkipDescriptions {
+						logrus.Debugf("skipping description at %+v", e.Path)
 					} else {
-						//fmt.Printf("  skipping -- description\n")
+						fmt.Printf("  %s at %+v\n", e.Type, e.Path)
+						if args.PrintValues {
+							fmt.Printf("  - old: %+v\n  - new: %+v\n", e.Old, e.New)
+						}
 					}
 				}
 				fmt.Println()
