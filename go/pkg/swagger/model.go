@@ -53,7 +53,7 @@ func (p *Property) ResolveToJsonBlob(resolve func(string) (string, *Definition),
 			if !inProgress[typeName] {
 				items["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "items", "$ref", p.Items.Ref), utils.AddKey(inProgress, typeName))
 			} else {
-				items["$ref"] = "(circular)"
+				items["type"] = "(circular)"
 			}
 		}
 		if p.Items.Type != "" {
@@ -66,7 +66,7 @@ func (p *Property) ResolveToJsonBlob(resolve func(string) (string, *Definition),
 		if !inProgress[typeName] {
 			out["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "$ref", p.Ref), utils.AddKey(inProgress, typeName))
 		} else {
-			out["$ref"] = "(circular)"
+			out["type"] = "(circular)"
 		}
 	}
 	if p.Type != "" {

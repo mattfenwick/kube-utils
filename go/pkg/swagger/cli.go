@@ -156,19 +156,20 @@ func RunCompare(args *CompareArgs) {
 	for typeName := range typeNames {
 		fmt.Printf("inspecting type %s\n", typeName)
 
-		resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
-		resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
-		//resolved1 := swaggerSpec1.AnalyzeType(typeName)
-		//resolved2 := swaggerSpec2.AnalyzeType(typeName)
+		//resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
+		//resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
+		resolved1 := swaggerSpec1.AnalyzeType(typeName)
+		resolved2 := swaggerSpec2.AnalyzeType(typeName)
 
 		for groupName1, type1 := range resolved1 {
 			for groupName2, type2 := range resolved2 {
 				fmt.Printf("comparing %s: %s@%s vs. %s@%s\n", typeName, args.Versions[0], groupName1, args.Versions[1], groupName2)
-				for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
+				for _, e := range CompareAnalysisTypes(type1, type2).Elements {
+					//for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
 					if len(e.Path) > 0 && e.Path[len(e.Path)-1] == "description" && args.SkipDescriptions {
 						logrus.Debugf("skipping description at %+v", e.Path)
 					} else {
-						fmt.Printf("  %s at %+v\n", e.Type, e.Path)
+						fmt.Printf("  %-20s    %+v\n", e.Type, strings.Join(e.Path, "."))
 						if args.PrintValues {
 							fmt.Printf("  - old: %+v\n  - new: %+v\n", e.Old, e.New)
 						}
