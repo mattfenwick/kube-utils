@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func setupSwaggerCommand() *cobra.Command {
+func setupRootCommand() *cobra.Command {
 	var verbosity string
 
 	command := &cobra.Command{
@@ -23,29 +23,29 @@ func setupSwaggerCommand() *cobra.Command {
 
 	command.PersistentFlags().StringVar(&verbosity, "log-level", "info", "log level; one of [trace, debug, info, warn, error, fatal, panic]")
 
-	command.AddCommand(setupSwaggerResolveCommand())
-	command.AddCommand(setupSwaggerCompareCommand())
-	command.AddCommand(setupSwaggerParseCommand())
+	command.AddCommand(setupExplainCommand())
+	command.AddCommand(setupCompareCommand())
+	command.AddCommand(setupParseCommand())
 
 	return command
 }
 
-type ResolveArgs struct {
+type ExplainArgs struct {
 	Format        string
 	GroupVersions []string
 	TypeName      string
 	Version       string
 }
 
-func setupSwaggerResolveCommand() *cobra.Command {
-	args := &ResolveArgs{}
+func setupExplainCommand() *cobra.Command {
+	args := &ExplainArgs{}
 
 	command := &cobra.Command{
-		Use:   "resolve",
-		Short: "resolve types from a swagger spec",
+		Use:   "explain",
+		Short: "explain types from a swagger spec",
 		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, as []string) {
-			RunResolve(args)
+			RunExplain(args)
 		},
 	}
 
@@ -58,7 +58,7 @@ func setupSwaggerResolveCommand() *cobra.Command {
 	return command
 }
 
-func RunResolve(args *ResolveArgs) {
+func RunExplain(args *ExplainArgs) {
 	// TODO either guarantee the data is present, or curl it
 	path := MakePathFromKubeVersion(args.Version)
 	typeName := args.TypeName
@@ -102,7 +102,7 @@ type CompareArgs struct {
 	PrintValues      bool
 }
 
-func setupSwaggerCompareCommand() *cobra.Command {
+func setupCompareCommand() *cobra.Command {
 	args := &CompareArgs{}
 
 	command := &cobra.Command{
@@ -188,7 +188,7 @@ type ParseArgs struct {
 	Version string
 }
 
-func setupSwaggerParseCommand() *cobra.Command {
+func setupParseCommand() *cobra.Command {
 	args := &ParseArgs{}
 
 	command := &cobra.Command{

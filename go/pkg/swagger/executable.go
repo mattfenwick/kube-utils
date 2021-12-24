@@ -6,6 +6,6 @@ import (
 )
 
 func Executable() {
-	command := setupSwaggerCommand()
+	command := setupRootCommand()
 	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root command"))
 }
