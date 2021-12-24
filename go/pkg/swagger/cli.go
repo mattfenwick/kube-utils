@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"sort"
 	"strings"
 )
 
@@ -82,7 +83,8 @@ func RunExplain(args *ExplainArgs) {
 		analyses = filteredAnalyses
 	}
 
-	for groupVersion, analysis := range analyses {
+	for _, groupVersion := range SortedKeys(analyses) {
+		analysis := analyses[groupVersion]
 		switch args.Format {
 		case "table":
 			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, AnalysisTypeTable(analysis))
@@ -139,7 +141,7 @@ func RunCompare(args *CompareArgs) {
 	swaggerSpec2, err := ReadSwaggerSpecs(path2)
 	utils.DoOrDie(err)
 
-	typeNames := map[string]bool{}
+	typeNames := map[string]interface{}{}
 	if len(args.TypeNames) > 0 {
 		for _, name := range args.TypeNames {
 			typeNames[name] = true
@@ -153,7 +155,7 @@ func RunCompare(args *CompareArgs) {
 		}
 	}
 
-	for typeName := range typeNames {
+	for _, typeName := range SortedKeys(typeNames) {
 		fmt.Printf("inspecting type %s\n", typeName)
 
 		//resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
@@ -161,8 +163,10 @@ func RunCompare(args *CompareArgs) {
 		resolved1 := swaggerSpec1.AnalyzeType(typeName)
 		resolved2 := swaggerSpec2.AnalyzeType(typeName)
 
-		for groupName1, type1 := range resolved1 {
-			for groupName2, type2 := range resolved2 {
+		for _, groupName1 := range SortedKeys(resolved1) {
+			type1 := resolved1[groupName1]
+			for _, groupName2 := range SortedKeys(resolved2) {
+				type2 := resolved2[groupName2]
 				fmt.Printf("comparing %s: %s@%s vs. %s@%s\n", typeName, args.Versions[0], groupName1, args.Versions[1], groupName2)
 				for _, e := range CompareAnalysisTypes(type1, type2).Elements {
 					//for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
@@ -179,6 +183,15 @@ func RunCompare(args *CompareArgs) {
 			}
 		}
 	}
+}
+
+func SortedKeys(dict map[string]interface{}) []string {
+	var keys []string
+	for k := range dict {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func MakePathFromKubeVersion(version string) string {

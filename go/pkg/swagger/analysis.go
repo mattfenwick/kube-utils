@@ -47,6 +47,10 @@ func AnalysisGetTypes(obj interface{}, pathContext []string) [][2]string {
 
 	var out [][2]string
 	switch o := obj.(type) {
+	case *Any:
+		out = append(out, [2]string{strings.Join(path, "."), "(any)"})
+	case *Circular:
+		out = append(out, [2]string{strings.Join(path, "."), "(circular)"})
 	case *Primitive:
 		out = append(out, [2]string{strings.Join(path, "."), o.Type})
 	case *Array:
@@ -97,6 +101,13 @@ func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []stri
 		case *Any:
 			switch bVal := b.(type) {
 			case *Any:
+				// nothing to do
+			default:
+				diffs.Add(&utils.JDiff{Type: utils.DiffTypeChange, Old: aVal, New: bVal, Path: path})
+			}
+		case *Circular:
+			switch bVal := b.(type) {
+			case *Circular:
 				// nothing to do
 			default:
 				diffs.Add(&utils.JDiff{Type: utils.DiffTypeChange, Old: aVal, New: bVal, Path: path})
@@ -182,6 +193,8 @@ type Object struct {
 
 type Any struct{}
 
+type Circular struct{} // TODO at some point, add in a string to refer to type by name?
+
 func (s *Spec) AnalyzeType(typeName string) map[string]interface{} {
 	jsonBlob := s.ResolveToJsonBlob(typeName)
 	out := map[string]interface{}{}
@@ -230,7 +243,7 @@ func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []stri
 		case "string", "integer", "boolean", "number":
 			return &Primitive{Type: t}
 		case "(circular)":
-			return &Any{} // TODO this is pretty weird -- is there a better way to handle this?
+			return &Circular{}
 		case "object":
 			if v, ok := o["properties"]; ok {
 				fields := map[string]interface{}{}
