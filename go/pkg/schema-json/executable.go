@@ -14,14 +14,17 @@ import (
 )
 
 func Executable() {
+	command := setupSwaggerCommand()
+	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root command"))
+
+	panic(3)
+
 	//mode := "find-by-path-nested-items"
 	//mode := "parse"
 	//mode := "diff"
 	mode := "resolve"
 
 	switch mode {
-	case "resolve":
-		RunResolve()
 	case "diff":
 		RunDiff()
 	case "parse":
@@ -35,34 +38,6 @@ func Executable() {
 		RunFindByRegex()
 	default:
 		panic("invalid mode")
-	}
-}
-
-func RunResolve() {
-	path := os.Args[1]
-	typeName := os.Args[2]
-	swaggerSpec, err := ReadSwaggerSpecs(path)
-	utils.DoOrDie(err)
-
-	showTable := false
-
-	analyses := swaggerSpec.AnalyzeType(typeName)
-
-	for group, analysis := range analyses {
-		//analysisBs, err := utils.MarshalIndent(analysis, "", "  ")
-		//utils.DoOrDie(err)
-		////fmt.Printf("%s analysis:\n%s\n", group, analysisBs)
-		//
-		//yamlBytes, err := yaml.JSONToYAML(analysisBs)
-		//utils.DoOrDie(err)
-		//
-		//fmt.Printf("\n%s.%s analysis:\n%s\n", group, typeName, yamlBytes)
-
-		if showTable {
-			fmt.Printf("%s.%s:\n%s\n", group, typeName, SwaggerAnalysisTypeTable(analysis))
-		} else {
-			fmt.Printf("%s.%s:\n%s\n", group, typeName, strings.Join(SwaggerAnalysisTypeSummary(analysis), "\n"))
-		}
 	}
 }
 
