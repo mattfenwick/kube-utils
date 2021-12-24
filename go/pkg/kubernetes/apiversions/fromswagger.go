@@ -2,7 +2,7 @@ package apiversions
 
 import (
 	"fmt"
-	schema_json "github.com/mattfenwick/kube-utils/go/pkg/schema-json"
+	"github.com/mattfenwick/kube-utils/go/pkg/swagger"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -65,7 +65,7 @@ func ParseJsonSpecs() {
 		err = GetFileFromURL(BuildSwaggerSpecsURL(version), path)
 		utils.DoOrDie(err)
 
-		obj, err := schema_json.ReadSwaggerSpecs(path)
+		obj, err := swagger.ReadSwaggerSpecs(path)
 		utils.DoOrDie(err)
 
 		resourcesTable := &ResourcesTable{

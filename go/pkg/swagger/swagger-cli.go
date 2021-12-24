@@ -1,4 +1,4 @@
-package schema_json
+package swagger
 
 import (
 	"fmt"

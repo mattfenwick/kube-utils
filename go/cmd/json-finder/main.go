@@ -1,7 +1,7 @@
 package main
 
-import schema_json "github.com/mattfenwick/kube-utils/go/pkg/schema-json"
+import "github.com/mattfenwick/kube-utils/go/pkg/swagger"
 
 func main() {
-	schema_json.Executable()
+	swagger.Executable()
 }

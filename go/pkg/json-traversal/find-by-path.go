@@ -1,4 +1,4 @@
-package schema_json
+package json_traversal
 
 func JsonFindByPath(obj interface{}, path []*PathComponent) interface{} {
 	for _, component := range path {

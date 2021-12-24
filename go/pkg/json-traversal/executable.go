@@ -1,4 +1,4 @@
-package schema_json
+package json_traversal
 
 import (
 	"fmt"
@@ -14,11 +14,6 @@ import (
 )
 
 func Executable() {
-	command := setupSwaggerCommand()
-	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root command"))
-
-	panic(3)
-
 	mode := "find-by-path-nested-items"
 
 	switch mode {
@@ -33,7 +28,6 @@ func Executable() {
 		panic("invalid mode")
 	}
 }
-
 func RunFindByPathNestedItems() {
 	path := os.Args[1]
 

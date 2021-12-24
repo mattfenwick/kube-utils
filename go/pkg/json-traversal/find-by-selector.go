@@ -1,4 +1,4 @@
-package schema_json
+package json_traversal
 
 import (
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"

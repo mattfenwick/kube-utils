@@ -1,4 +1,4 @@
-package schema_json
+package json_traversal
 
 import (
 	"fmt"
