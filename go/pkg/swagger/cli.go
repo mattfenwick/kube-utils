@@ -59,11 +59,7 @@ func setupExplainCommand() *cobra.Command {
 }
 
 func RunExplain(args *ExplainArgs) {
-	// TODO either guarantee the data is present, or curl it
-	path := MakePathFromKubeVersion(args.Version)
-
-	swaggerSpec, err := ReadSwaggerSpecs(path)
-	utils.DoOrDie(err)
+	swaggerSpec := MustReadSwaggerSpec(args.Version)
 
 	// no types specified?  use them all
 	//   otherwise, filter down to just the ones requested
@@ -154,12 +150,9 @@ func RunCompare(args *CompareArgs) {
 	if len(args.Versions) != 2 {
 		panic(errors.Errorf("expected 2 kube versions, found %+v", args.Versions))
 	}
-	path1, path2 := MakePathFromKubeVersion(args.Versions[0]), MakePathFromKubeVersion(args.Versions[1])
 
-	swaggerSpec1, err := ReadSwaggerSpecs(path1)
-	utils.DoOrDie(err)
-	swaggerSpec2, err := ReadSwaggerSpecs(path2)
-	utils.DoOrDie(err)
+	swaggerSpec1 := MustReadSwaggerSpec(args.Versions[0])
+	swaggerSpec2 := MustReadSwaggerSpec(args.Versions[1])
 
 	typeNames := map[string]interface{}{}
 	if len(args.TypeNames) > 0 {
@@ -227,9 +220,7 @@ func setupParseCommand() *cobra.Command {
 }
 
 func RunParse(args *ParseArgs) {
-	path := MakePathFromKubeVersion(args.Version)
-	spec, err := ReadSwaggerSpecs(path)
-	utils.DoOrDie(err)
+	spec := MustReadSwaggerSpec(args.Version)
 
 	for name, t := range spec.Definitions {
 		for propName, prop := range t.Properties {

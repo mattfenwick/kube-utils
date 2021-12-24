@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"os"
 )
 
 func DoOrDie(err error) {
@@ -74,4 +75,14 @@ func GetFileFromURL(url string, path string) error {
 	}
 
 	return errors.Wrapf(ioutil.WriteFile(path, bytes, 0777), "unable to write file %s", path)
+}
+
+func FileExists(path string) (bool, error) {
+	if _, err := os.Stat(path); err == nil {
+		return true, nil
+	} else if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	} else {
+		return false, errors.Wrapf(err, "unable to os.Stat path %s", path)
+	}
 }

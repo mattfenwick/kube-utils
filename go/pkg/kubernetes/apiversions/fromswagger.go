@@ -37,12 +37,7 @@ func ParseJsonSpecs() {
 	}
 
 	for _, version := range swagger.LatestKubePatchVersions {
-		path := fmt.Sprintf("%s/%s-swagger-spec.json", swagger.SpecsRootDirectory, version)
-		err = utils.GetFileFromURL(swagger.BuildSwaggerSpecsURLFromKubeVersion(version), path)
-		utils.DoOrDie(err)
-
-		obj, err := swagger.ReadSwaggerSpecs(path)
-		utils.DoOrDie(err)
+		obj := swagger.MustReadSwaggerSpec(version)
 
 		resourcesTable := &ResourcesTable{
 			Version: version,
