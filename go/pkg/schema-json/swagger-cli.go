@@ -25,6 +25,7 @@ func setupSwaggerCommand() *cobra.Command {
 
 	command.AddCommand(setupSwaggerResolveCommand())
 	command.AddCommand(setupSwaggerCompareCommand())
+	command.AddCommand(setupSwaggerParseCommand())
 
 	return command
 }
@@ -157,6 +158,8 @@ func RunCompare(args *CompareArgs) {
 
 		resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
 		resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
+		//resolved1 := swaggerSpec1.AnalyzeType(typeName)
+		//resolved2 := swaggerSpec2.AnalyzeType(typeName)
 
 		for groupName1, type1 := range resolved1 {
 			for groupName2, type2 := range resolved2 {
@@ -179,4 +182,44 @@ func RunCompare(args *CompareArgs) {
 
 func MakePathFromKubeVersion(version string) string {
 	return fmt.Sprintf("./swagger-data/%s-swagger-spec.json", version)
+}
+
+type ParseArgs struct {
+	Version string
+}
+
+func setupSwaggerParseCommand() *cobra.Command {
+	args := &ParseArgs{}
+
+	command := &cobra.Command{
+		Use:   "parse",
+		Short: "parse and serialize openapi spec for comparison (test command)",
+		Args:  cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, as []string) {
+			RunParse(args)
+		},
+	}
+
+	command.Flags().StringVar(&args.Version, "version", "1.23.0", "kubernetes version")
+
+	return command
+}
+
+func RunParse(args *ParseArgs) {
+	path := MakePathFromKubeVersion(args.Version)
+	spec, err := ReadSwaggerSpecs(path)
+	utils.DoOrDie(err)
+
+	for name, t := range spec.Definitions {
+		for propName, prop := range t.Properties {
+			logrus.Debugf("%s, %s: %+v\n<<>>\n", name, propName, prop.Items)
+		}
+	}
+
+	// must do weird marshal/unmarshal/marshal dance to get struct keys sorted
+	normalizedSpec := utils.MustJsonRemarshal(spec)
+	bytes, err := utils.MarshalIndent(normalizedSpec, "", "  ")
+	utils.DoOrDie(err)
+
+	fmt.Printf("%s\n", bytes)
 }

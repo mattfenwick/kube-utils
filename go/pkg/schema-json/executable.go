@@ -19,12 +19,9 @@ func Executable() {
 
 	panic(3)
 
-	//mode := "parse"
-	mode := "resolve"
+	mode := "find-by-path-nested-items"
 
 	switch mode {
-	case "parse":
-		RunParse()
 	case "find-by-path-nested-items":
 		RunFindByPathNestedItems()
 	case "find-by-path":
@@ -35,29 +32,6 @@ func Executable() {
 	default:
 		panic("invalid mode")
 	}
-}
-
-func RunParse() {
-	path := os.Args[1]
-	spec, err := ReadSwaggerSpecs(path)
-	utils.DoOrDie(err)
-
-	for name, t := range spec.Definitions {
-		for propName, prop := range t.Properties {
-			fmt.Printf("%s, %s: %+v\n<<>>\n", name, propName, prop.Items)
-		}
-	}
-
-	outputPath := "out-sorted.json"
-	err = utils.WriteJson(outputPath, spec)
-	utils.DoOrDie(err)
-	// must again unmarshal/marshal to get struct keys sorted
-	err = utils.JsonUnmarshalMarshal(outputPath)
-	utils.DoOrDie(err)
-
-	fmt.Printf("%s\n", strings.Join(spec.VersionKindLengths(), "\n"))
-
-	//fmt.Printf("spec:\n%+v\n", spec)
 }
 
 func RunFindByPathNestedItems() {
