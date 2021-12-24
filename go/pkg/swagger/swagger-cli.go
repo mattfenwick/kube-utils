@@ -85,9 +85,9 @@ func RunResolve(args *ResolveArgs) {
 	for groupVersion, analysis := range analyses {
 		switch args.Format {
 		case "table":
-			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, SwaggerAnalysisTypeTable(analysis))
+			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, AnalysisTypeTable(analysis))
 		case "condensed":
-			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(SwaggerAnalysisTypeSummary(analysis), "\n"))
+			fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(AnalysisTypeSummary(analysis), "\n"))
 		default:
 			panic(errors.Errorf("invalid output format: %s", args.Format))
 		}

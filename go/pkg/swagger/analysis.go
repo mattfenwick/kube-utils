@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func SwaggerAnalysisTypeTable(o interface{}) string {
+func AnalysisTypeTable(o interface{}) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -17,16 +17,16 @@ func SwaggerAnalysisTypeTable(o interface{}) string {
 	table.SetAutoMergeCells(true)
 	table.SetColMinWidth(0, 100)
 	table.SetHeader([]string{"Field", "Type"})
-	for _, values := range SwaggerAnalysisGetTypes(o, []string{}) {
+	for _, values := range AnalysisGetTypes(o, []string{}) {
 		table.Append([]string{values[0], values[1]})
 	}
 	table.Render()
 	return tableString.String()
 }
 
-func SwaggerAnalysisTypeSummary(obj interface{}) []string {
+func AnalysisTypeSummary(obj interface{}) []string {
 	var lines []string
-	for _, t := range SwaggerAnalysisGetTypes(obj, []string{}) {
+	for _, t := range AnalysisGetTypes(obj, []string{}) {
 		chunks := strings.Split(t[0], ".")
 		lines = append(lines,
 			fmt.Sprintf(
@@ -38,7 +38,7 @@ func SwaggerAnalysisTypeSummary(obj interface{}) []string {
 	return lines
 }
 
-func SwaggerAnalysisGetTypes(obj interface{}, pathContext []string) [][2]string {
+func AnalysisGetTypes(obj interface{}, pathContext []string) [][2]string {
 	path := make([]string, len(pathContext))
 	copy(path, pathContext)
 
@@ -50,7 +50,7 @@ func SwaggerAnalysisGetTypes(obj interface{}, pathContext []string) [][2]string 
 		out = append(out, [2]string{strings.Join(path, "."), o.Type})
 	case *Array:
 		out = append(out, [2]string{strings.Join(path, "."), "array"})
-		out = append(out, SwaggerAnalysisGetTypes(o.ElementType, append(path, "[]"))...)
+		out = append(out, AnalysisGetTypes(o.ElementType, append(path, "[]"))...)
 	case *Dict:
 		out = append(out, [2]string{strings.Join(path, "."), "map[string]string"})
 	case *Object:
@@ -61,7 +61,7 @@ func SwaggerAnalysisGetTypes(obj interface{}, pathContext []string) [][2]string 
 		}
 		sort.Strings(sortedFields)
 		for _, fieldName := range sortedFields {
-			out = append(out, SwaggerAnalysisGetTypes(o.Fields[fieldName], append(path, fieldName))...)
+			out = append(out, AnalysisGetTypes(o.Fields[fieldName], append(path, fieldName))...)
 		}
 	default:
 		panic(errors.Errorf("invalid type: %T", o))
@@ -85,7 +85,7 @@ type Object struct {
 	Fields map[string]interface{}
 }
 
-func (s *SwaggerSpec) AnalyzeType(typeName string) map[string]interface{} {
+func (s *Spec) AnalyzeType(typeName string) map[string]interface{} {
 	jsonBlob := s.ResolveToJsonBlob(typeName)
 	out := map[string]interface{}{}
 	for group, typeDef := range jsonBlob {

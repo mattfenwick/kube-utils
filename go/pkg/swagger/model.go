@@ -10,17 +10,17 @@ import (
 	"strings"
 )
 
-type SwaggerAdditionalProperty struct {
+type AdditionalProperty struct {
 	Format string            `json:"format,omitempty"`
 	Ref    string            `json:"$ref,omitempty"`
 	Items  map[string]string `json:"items,omitempty"`
 	Type   string            `json:"type,omitempty"`
 }
 
-type SwaggerProperty struct {
-	AdditionalProperties *SwaggerAdditionalProperty `json:"additionalProperties,omitempty"`
-	Description          string                     `json:"description,omitempty"`
-	Format               string                     `json:"format,omitempty"`
+type Property struct {
+	AdditionalProperties *AdditionalProperty `json:"additionalProperties,omitempty"`
+	Description          string              `json:"description,omitempty"`
+	Format               string              `json:"format,omitempty"`
 	Items                *struct {
 		Format string `json:"format,omitempty"`
 		Ref    string `json:"$ref,omitempty"`
@@ -34,53 +34,53 @@ type SwaggerProperty struct {
 	XKubernetesPatchStrategy string   `json:"x-kubernetes-patch-strategy,omitempty"`
 }
 
-func (s *SwaggerProperty) ResolveToJsonBlob(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
+func (p *Property) ResolveToJsonBlob(resolve func(string) (string, *Definition), path []string, inProgress map[string]bool) map[string]interface{} {
 	logrus.Debugf("resolve property path: %+v", path)
 	out := map[string]interface{}{}
-	if s.Description != "" {
-		out["description"] = s.Description
+	if p.Description != "" {
+		out["description"] = p.Description
 	}
-	if s.Format != "" {
-		out["format"] = s.Format
+	if p.Format != "" {
+		out["format"] = p.Format
 	}
-	if s.Items != nil {
+	if p.Items != nil {
 		items := map[string]interface{}{}
-		if s.Items.Format != "" {
-			items["format"] = s.Items.Format
+		if p.Items.Format != "" {
+			items["format"] = p.Items.Format
 		}
-		if s.Items.Ref != "" {
-			typeName, resolvedType := resolve(s.Items.Ref)
+		if p.Items.Ref != "" {
+			typeName, resolvedType := resolve(p.Items.Ref)
 			if !inProgress[typeName] {
-				items["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "items", "$ref", s.Items.Ref), utils.AddKey(inProgress, typeName))
+				items["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "items", "$ref", p.Items.Ref), utils.AddKey(inProgress, typeName))
 			} else {
 				items["$ref"] = "(circular)"
 			}
 		}
-		if s.Items.Type != "" {
-			items["type"] = s.Items.Type
+		if p.Items.Type != "" {
+			items["type"] = p.Items.Type
 		}
 		out["items"] = items
 	}
-	if s.Ref != "" {
-		typeName, resolvedType := resolve(s.Ref)
+	if p.Ref != "" {
+		typeName, resolvedType := resolve(p.Ref)
 		if !inProgress[typeName] {
-			out["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "$ref", s.Ref), utils.AddKey(inProgress, typeName))
+			out["$ref"] = resolvedType.ResolveToJsonBlob(resolve, append(path, "$ref", p.Ref), utils.AddKey(inProgress, typeName))
 		} else {
 			out["$ref"] = "(circular)"
 		}
 	}
-	if s.Type != "" {
-		out["type"] = s.Type
+	if p.Type != "" {
+		out["type"] = p.Type
 	}
 	return out
 }
 
-type SwaggerDefinition struct {
-	Description                 string                      `json:"description,omitempty"`
-	Format                      string                      `json:"format,omitempty"`
-	Properties                  map[string]*SwaggerProperty `json:"properties,omitempty"`
-	Required                    []string                    `json:"required,omitempty"`
-	Type                        string                      `json:"type,omitempty"`
+type Definition struct {
+	Description                 string               `json:"description,omitempty"`
+	Format                      string               `json:"format,omitempty"`
+	Properties                  map[string]*Property `json:"properties,omitempty"`
+	Required                    []string             `json:"required,omitempty"`
+	Type                        string               `json:"type,omitempty"`
 	XKubernetesGroupVersionKind []struct {
 		Group   string `json:"group"`
 		Kind    string `json:"kind"`
@@ -89,47 +89,47 @@ type SwaggerDefinition struct {
 	XKubernetesUnions []map[string]interface{} `json:"x-kubernetes-unions,omitempty"`
 }
 
-func (s *SwaggerDefinition) ResolveToJsonBlob(resolve func(string) (string, *SwaggerDefinition), path []string, inProgress map[string]bool) map[string]interface{} {
+func (d *Definition) ResolveToJsonBlob(resolve func(string) (string, *Definition), path []string, inProgress map[string]bool) map[string]interface{} {
 	if len(path) > 100 {
 		panic("TODO")
 	}
 	logrus.Debugf("resolve definition path: %+v", path)
 	out := map[string]interface{}{}
-	if s.Description != "" {
-		out["description"] = s.Description
+	if d.Description != "" {
+		out["description"] = d.Description
 	}
-	if s.Format != "" {
-		out["format"] = s.Format
+	if d.Format != "" {
+		out["format"] = d.Format
 	}
-	if len(s.Properties) > 0 {
+	if len(d.Properties) > 0 {
 		properties := map[string]interface{}{}
-		for propName, property := range s.Properties {
+		for propName, property := range d.Properties {
 			properties[propName] = property.ResolveToJsonBlob(resolve, append(path, "properties", propName), inProgress)
 		}
 		out["properties"] = properties
 	}
-	if s.Required != nil {
-		out["required"] = s.Required
+	if d.Required != nil {
+		out["required"] = d.Required
 	}
-	if s.Type != "" {
-		out["type"] = s.Type
+	if d.Type != "" {
+		out["type"] = d.Type
 	}
 	return out
 }
 
-type SwaggerSpec struct {
-	Definitions map[string]*SwaggerDefinition `json:"definitions"`
+type Spec struct {
+	Definitions map[string]*Definition `json:"definitions"`
 	Info        struct {
 		Title   string `json:"title"`
 		Version string `json:"version"`
 	} `json:"info"`
-	definitionsByNameCache map[string]map[string]*SwaggerDefinition
+	definitionsByNameCache map[string]map[string]*Definition
 	//Paths map[string]interface{}
 	//Security int
 	//SecurityDefinitions int
 }
 
-func (s *SwaggerSpec) ResolveRef(ref string) (string, *SwaggerDefinition) {
+func (s *Spec) ResolveRef(ref string) (string, *Definition) {
 	typeName := ParseRef(ref)
 	resolvedType, ok := s.Definitions[typeName]
 	if !ok {
@@ -139,9 +139,9 @@ func (s *SwaggerSpec) ResolveRef(ref string) (string, *SwaggerDefinition) {
 	return typeName, resolvedType
 }
 
-func (s *SwaggerSpec) DefinitionsByNameByGroup() map[string]map[string]*SwaggerDefinition {
+func (s *Spec) DefinitionsByNameByGroup() map[string]map[string]*Definition {
 	if s.definitionsByNameCache == nil {
-		s.definitionsByNameCache = map[string]map[string]*SwaggerDefinition{}
+		s.definitionsByNameCache = map[string]map[string]*Definition{}
 		for name, def := range s.Definitions {
 			if len(def.XKubernetesGroupVersionKind) != 1 {
 				logrus.Debugf("skipping type %s, has %d groupversionkinds", name, len(def.XKubernetesGroupVersionKind))
@@ -149,7 +149,7 @@ func (s *SwaggerSpec) DefinitionsByNameByGroup() map[string]map[string]*SwaggerD
 			}
 			gvk := def.XKubernetesGroupVersionKind[0]
 			if _, ok := s.definitionsByNameCache[gvk.Kind]; !ok {
-				s.definitionsByNameCache[gvk.Kind] = map[string]*SwaggerDefinition{}
+				s.definitionsByNameCache[gvk.Kind] = map[string]*Definition{}
 			}
 			s.definitionsByNameCache[gvk.Kind][gvk.Group+"."+gvk.Version] = def
 		}
@@ -157,7 +157,7 @@ func (s *SwaggerSpec) DefinitionsByNameByGroup() map[string]map[string]*SwaggerD
 	return s.definitionsByNameCache
 }
 
-func (s *SwaggerSpec) VersionKindLengths() []string {
+func (s *Spec) VersionKindLengths() []string {
 	var lengths []string
 	for name, def := range s.Definitions {
 		lengths = append(lengths, fmt.Sprintf("%d: %s", len(def.XKubernetesGroupVersionKind), name))
@@ -165,7 +165,7 @@ func (s *SwaggerSpec) VersionKindLengths() []string {
 	return lengths
 }
 
-func (s *SwaggerSpec) ResolveAllToJsonBlob() map[string]interface{} {
+func (s *Spec) ResolveAllToJsonBlob() map[string]interface{} {
 	out := map[string]interface{}{}
 	for name, def := range s.Definitions {
 		out[name] = def.ResolveToJsonBlob(s.ResolveRef, []string{"definitions", name}, map[string]bool{})
@@ -173,7 +173,7 @@ func (s *SwaggerSpec) ResolveAllToJsonBlob() map[string]interface{} {
 	return out
 }
 
-func (s *SwaggerSpec) ResolveToJsonBlob(name string) map[string]interface{} {
+func (s *Spec) ResolveToJsonBlob(name string) map[string]interface{} {
 	out := map[string]interface{}{}
 	for groupName, def := range s.DefinitionsByNameByGroup()[name] {
 		out[groupName] = def.ResolveToJsonBlob(s.ResolveRef, []string{groupName, name}, map[string]bool{})
@@ -189,13 +189,13 @@ func ParseRef(ref string) string {
 	return pieces[2]
 }
 
-func ReadSwaggerSpecs(path string) (*SwaggerSpec, error) {
+func ReadSwaggerSpecs(path string) (*Spec, error) {
 	in, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read file %s", path)
 	}
 
-	obj := &SwaggerSpec{}
+	obj := &Spec{}
 	err = json.Unmarshal(in, obj)
 
 	return obj, errors.Wrapf(err, "unable to unmarshal json")
