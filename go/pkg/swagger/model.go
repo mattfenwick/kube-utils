@@ -1,12 +1,10 @@
 package swagger
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"strings"
 )
 
@@ -191,16 +189,4 @@ func ParseRef(ref string) string {
 		panic(errors.Errorf("unable to parse ref: expected 3 pieces, found %d (%s)", len(pieces), ref))
 	}
 	return pieces[2]
-}
-
-func ReadSwaggerSpecs(path string) (*Spec, error) {
-	in, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read file %s", path)
-	}
-
-	obj := &Spec{}
-	err = json.Unmarshal(in, obj)
-
-	return obj, errors.Wrapf(err, "unable to unmarshal json")
 }

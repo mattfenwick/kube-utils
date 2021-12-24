@@ -205,19 +205,6 @@ func RunCompare(args *CompareArgs) {
 	}
 }
 
-func SortedKeys(dict map[string]interface{}) []string {
-	var keys []string
-	for k := range dict {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func MakePathFromKubeVersion(version string) string {
-	return fmt.Sprintf("./swagger-data/%s-swagger-spec.json", version)
-}
-
 type ParseArgs struct {
 	Version string
 }

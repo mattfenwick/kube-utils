@@ -28,41 +28,17 @@ func ParseJsonSpecs() {
 		"StatefulSet",
 	}
 
-	err := os.MkdirAll("./swagger-data", 0777)
-	utils.DoOrDie(errors.Wrapf(err, "unable to mkdir ./swagger-data"))
+	err := os.MkdirAll(swagger.SpecsRootDirectory, 0777)
+	utils.DoOrDie(errors.Wrapf(err, "unable to mkdir %s", swagger.SpecsRootDirectory))
 
 	previousTable := &ResourcesTable{
 		Version: "???",
 		Kinds:   map[string][]string{},
 	}
-	// these version numbers come from https://github.com/kubernetes/kubernetes/tree/master/CHANGELOG
-	for _, version := range []string{
-		// for some reason, there's nothing listed for 1.1
-		//"1.2.7", // for some reason, these don't show up
-		//"1.3.10",
-		//"1.4.12",
-		"1.5.8",
-		"1.6.13",
-		"1.7.16",
-		"1.8.15",
-		"1.9.11",
-		"1.10.13",
-		"1.11.10",
-		"1.12.10",
-		"1.13.12",
-		"1.14.10",
-		"1.15.12",
-		"1.16.15",
-		"1.17.17",
-		"1.18.19",
-		"1.19.11",
-		"1.20.7",
-		"1.21.2",
-		"1.22.4",
-		"1.23.0",
-	} {
-		path := fmt.Sprintf("./swagger-data/%s-swagger-spec.json", version)
-		err = GetFileFromURL(BuildSwaggerSpecsURL(version), path)
+
+	for _, version := range swagger.LatestKubePatchVersions {
+		path := fmt.Sprintf("%s/%s-swagger-spec.json", swagger.SpecsRootDirectory, version)
+		err = utils.GetFileFromURL(swagger.BuildSwaggerSpecsURLFromKubeVersion(version), path)
 		utils.DoOrDie(err)
 
 		obj, err := swagger.ReadSwaggerSpecs(path)
@@ -91,12 +67,8 @@ func ParseJsonSpecs() {
 		fmt.Printf("comparing %s to %s\n%s\n",
 			previousTable.Version,
 			resourcesTable.Version,
-			resourceDiff.Table(Set(includeResources), Set(excludeResources)))
+			resourceDiff.Table(utils.Set(includeResources), utils.Set(excludeResources)))
 
 		previousTable = resourcesTable
 	}
-}
-
-func BuildSwaggerSpecsURL(kubeVersion string) string {
-	return fmt.Sprintf("https://raw.githubusercontent.com/kubernetes/kubernetes/v%s/api/openapi-spec/swagger.json", kubeVersion)
 }

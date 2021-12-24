@@ -1,6 +1,7 @@
 package apiversions
 
 import (
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -137,7 +138,7 @@ func (r *ResourcesTable) KindResourcesTable() string {
 }
 
 func SliceDiff(as []string, bs []string) *MapDiff {
-	aSet, bSet := Set(as), Set(bs)
+	aSet, bSet := utils.Set(as), utils.Set(bs)
 	var added, removed, same []string
 	for key := range aSet {
 		if bSet[key] {
