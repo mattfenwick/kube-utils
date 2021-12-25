@@ -176,6 +176,9 @@ func RunCompare(args *CompareArgs) {
 		resolved1 := swaggerSpec1.AnalyzeType(typeName)
 		resolved2 := swaggerSpec2.AnalyzeType(typeName)
 
+		logrus.Infof("group/versions for kube %s: %+v", args.Versions[0], SortedKeys(resolved1))
+		logrus.Infof("group/versions for kube %s: %+v", args.Versions[1], SortedKeys(resolved2))
+
 		for _, groupName1 := range SortedKeys(resolved1) {
 			type1 := resolved1[groupName1]
 			for _, groupName2 := range SortedKeys(resolved2) {

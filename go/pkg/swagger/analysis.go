@@ -214,6 +214,7 @@ func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []stri
 
 	logrus.Debugf("path: %+v", path)
 
+	// TODO: note that this check doesn't work correctly on earlier api specs (doesn't work on kube 1.10.13 spec)
 	if o["type"] == nil && o["$ref"] == nil {
 		return &Any{}
 	}

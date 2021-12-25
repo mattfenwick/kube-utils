@@ -40,6 +40,12 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	return destinationBuffer.Bytes(), nil
 }
 
+func MustMarshal(v interface{}) []byte {
+	bs, err := MarshalIndent(v, "", "  ")
+	DoOrDie(err)
+	return bs
+}
+
 func JsonRemarshal(obj interface{}) (interface{}, error) {
 	bs, err := MarshalIndent(obj, "", "  ")
 	if err != nil {

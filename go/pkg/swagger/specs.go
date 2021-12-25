@@ -71,8 +71,10 @@ func MustReadSwaggerSpec(version string) *Spec {
 		err = os.MkdirAll(SpecsRootDirectory, 0777)
 		utils.DoOrDie(errors.Wrapf(err, "unable to mkdir %s", SpecsRootDirectory))
 
-		err = utils.GetFileFromURL(BuildSwaggerSpecsURLFromKubeVersion(version), path)
-		utils.DoOrDie(err)
+		utils.DoOrDie(utils.GetFileFromURL(BuildSwaggerSpecsURLFromKubeVersion(version), path))
+
+		// get the keys sorted
+		utils.DoOrDie(utils.JsonUnmarshalMarshal(path))
 	}
 
 	spec, err := ReadSwaggerSpec(path)
