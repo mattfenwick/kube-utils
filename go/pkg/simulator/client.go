@@ -47,18 +47,24 @@ func (c *Client) FetchScan(scanId string) (*ScanResults, error) {
 func (c *Client) Start() {
 	for w := 0; w < 10; w++ {
 		go func(workerId int) {
+			workerIdString := fmt.Sprintf("%d", workerId)
 			for i := 0; ; i++ {
 				data := rand.String(40_000)
+
+				RecordEventValue("issuing request", workerIdString, float64(i))
 				logrus.Infof("issuing request: %d, %d, %s", workerId, i, data[:15])
+
 				resp, err := c.StartScan(&StartScan{
 					Data: fmt.Sprintf("%d-%d-%s", workerId, i, data),
 				})
 				logrus.Infof("response from request %d, %d: %s", workerId, i, resp)
+				RecordEvent("start error", workerIdString, err)
 				if err != nil {
 					logrus.Errorf("unable to start scan: %+v", err)
 				}
 
 				scan, err := c.FetchScan(fmt.Sprintf("%d-%d", workerId, i))
+				RecordEvent("fetch scan", workerIdString, err)
 				if err != nil {
 					logrus.Errorf("unable to fetch scan: %+v", err)
 				} else {

@@ -1,0 +1,147 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # or "HTTPS"
+#  labels:
+  name: simulator
+#  namespace:
+spec:
+  #  tls:
+  #    - hosts:
+  #      {{- with .hosts }}
+  #        {{- toYaml . | nindent 8 }}
+  #      {{- end }}
+  #      secretName: {{ required "secretName is required" .secretName }}
+  rules:
+    - host: simulator-client
+      http:
+        paths:
+          - backend:
+              service:
+                name: simulator-client
+                port:
+                  number: 19999
+            path: "/"
+            pathType: ImplementationSpecific
+    - host: simulator-server
+      http:
+        paths:
+          - backend:
+              service:
+                name: simulator-server
+                port:
+                  number: 19999
+            path: "/"
+            pathType: ImplementationSpecific
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator-client
+  labels:
+    app.kubernetes.io/name: simulator-client
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: simulator-client
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: simulator-client
+      annotations:
+        prometheus.io/port: "9090"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+        - name: simulator-client
+          command: ["/main", "client", "http://simulator-server:19999"]
+          image: "localhost:5000/kube-utils/simulator:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: public
+              containerPort: 19999
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulator-client
+  labels:
+    app.kubernetes.io/name: simulator-client
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: simulator-client
+  ports:
+    - port: 19999
+      protocol: TCP
+      targetPort: 19999
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator-server
+  labels:
+    app.kubernetes.io/name: simulator-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: simulator-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: simulator-server
+      annotations:
+        prometheus.io/port: "9090"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+        - name: simulator-server
+          command: ["/main", "server"]
+          image: "localhost:5000/kube-utils/simulator:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: public
+              containerPort: 19999
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulator-server
+  labels:
+    app.kubernetes.io/name: simulator-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: simulator-server
+  ports:
+    - port: 19999
+      protocol: TCP
+      targetPort: 19999
