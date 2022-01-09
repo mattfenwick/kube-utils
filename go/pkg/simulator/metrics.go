@@ -11,14 +11,14 @@ var eventCounter *prometheus.CounterVec
 func RecordEventValue(name string, tag string, value float64) {
 	eventGauge.With(prometheus.Labels{
 		"name": name,
-		"tag": tag,
+		"tag":  tag,
 	}).Set(value)
 }
 
 func RecordEvent(name string, tag string, err error) {
 	eventCounter.With(prometheus.Labels{
-		"name": name,
-		"tag": tag,
+		"name":    name,
+		"tag":     tag,
 		"isError": fmt.Sprintf("%t", err != nil),
 	}).Inc()
 }

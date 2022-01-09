@@ -10,11 +10,11 @@ import (
 	"time"
 )
 
-func RunClient(serverAddress string) {
+func RunClient(serverAddress string, workers int) {
 	//logrus.SetLevel(logrus.InfoLevel)
 
 	client := NewClient(serverAddress)
-	client.Start()
+	client.Start(workers)
 
 	stop := make(chan struct{})
 	<-stop
@@ -44,8 +44,8 @@ func (c *Client) FetchScan(scanId string) (*ScanResults, error) {
 	return scan, err
 }
 
-func (c *Client) Start() {
-	for w := 0; w < 10; w++ {
+func (c *Client) Start(workers int) {
+	for w := 0; w < workers; w++ {
 		go func(workerId int) {
 			workerIdString := fmt.Sprintf("%d", workerId)
 			for i := 0; ; i++ {
