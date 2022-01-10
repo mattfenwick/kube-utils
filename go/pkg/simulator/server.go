@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"net/http"
@@ -79,6 +80,8 @@ type Responder interface {
 // SetupHTTPServer .....
 func SetupHTTPServer(responder Responder) {
 	http.HandleFunc("/scan", func(w http.ResponseWriter, r *http.Request) {
+		span := trace.SpanFromContext(r.Context())
+		span.AddEvent("server received")
 		switch r.Method {
 		case "POST":
 			body, err := ioutil.ReadAll(r.Body)
