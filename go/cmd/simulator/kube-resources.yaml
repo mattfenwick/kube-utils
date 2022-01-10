@@ -22,7 +22,7 @@ spec:
               service:
                 name: simulator-client
                 port:
-                  number: 19999
+                  number: 9090
             path: "/"
             pathType: ImplementationSpecific
     - host: simulator-server
@@ -87,9 +87,14 @@ spec:
   selector:
     app.kubernetes.io/name: simulator-client
   ports:
-    - port: 19999
+    - name: public
+      port: 19999
       protocol: TCP
       targetPort: 19999
+    - port: 9090
+      protocol: TCP
+      targetPort: 9090
+      name: metrics
 ---
 apiVersion: apps/v1
 kind: Deployment

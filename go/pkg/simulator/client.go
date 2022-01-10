@@ -1,20 +1,22 @@
 package simulator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"time"
 )
 
-func RunClient(serverAddress string, workers int) {
+func RunClient(serverAddress string, workers int, provider *tracesdk.TracerProvider) {
 	//logrus.SetLevel(logrus.InfoLevel)
 
 	client := NewClient(serverAddress)
-	client.Start(workers)
+	client.Start(workers, provider)
 
 	stop := make(chan struct{})
 	<-stop
@@ -44,26 +46,32 @@ func (c *Client) FetchScan(scanId string) (*ScanResults, error) {
 	return scan, err
 }
 
-func (c *Client) Start(workers int) {
+func (c *Client) Start(workers int, provider *tracesdk.TracerProvider) {
 	for w := 0; w < workers; w++ {
 		go func(workerId int) {
 			workerIdString := fmt.Sprintf("%d", workerId)
 			for i := 0; ; i++ {
 				data := rand.String(40_000)
 
+				tracer := provider.Tracer("client")
+
 				RecordEventValue("issuing request", workerIdString, float64(i))
 				logrus.Infof("issuing request: %d, %d, %s", workerId, i, data[:15])
 
+				_, startSpan := tracer.Start(context.Background(), "start scan")
 				resp, err := c.StartScan(&StartScan{
 					Data: fmt.Sprintf("%d-%d-%s", workerId, i, data),
 				})
+				startSpan.End()
 				logrus.Infof("response from request %d, %d: %s", workerId, i, resp)
 				RecordEvent("start error", workerIdString, err)
 				if err != nil {
 					logrus.Errorf("unable to start scan: %+v", err)
 				}
 
+				_, fetchSpan := tracer.Start(context.Background(), "fetch scan")
 				scan, err := c.FetchScan(fmt.Sprintf("%d-%d", workerId, i))
+				fetchSpan.End()
 				RecordEvent("fetch scan", workerIdString, err)
 				if err != nil {
 					logrus.Errorf("unable to fetch scan: %+v", err)

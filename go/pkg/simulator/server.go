@@ -1,19 +1,22 @@
 package simulator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"net/http"
+	"time"
 )
 
-func RunServer() {
+func RunServer(jaegerTracerProvider *tracesdk.TracerProvider) {
 	port := 19999
-	server := &Server{}
+	server := &Server{Provider: jaegerTracerProvider}
 	SetupHTTPServer(server)
 
 	stop := make(chan struct{})
@@ -27,13 +30,19 @@ func RunServer() {
 }
 
 type Server struct {
+	Provider *tracesdk.TracerProvider
 }
 
 func (s *Server) StartScan(scan *StartScan) {
+	_, span := s.Provider.Tracer("server").Start(context.Background(), "start")
+	time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
 	logrus.Infof("scan: %s of %d\n", scan.Data[:15], len(scan.Data))
+	span.End()
 }
 
 func (s *Server) FetchScanResults(scanId string) (*ScanResults, error) {
+	_, span := s.Provider.Tracer("server").Start(context.Background(), "fetch")
+	defer span.End()
 	return &ScanResults{
 		IsDone: false,
 		Data:   scanId + rand.String(40_000),
@@ -41,12 +50,18 @@ func (s *Server) FetchScanResults(scanId string) (*ScanResults, error) {
 }
 
 func (s *Server) NotFound(w http.ResponseWriter, r *http.Request) {
+	_, span := s.Provider.Tracer("server").Start(context.Background(), "not-found")
+	defer span.End()
+
 	w.WriteHeader(404)
 	_, err := w.Write([]byte("not found"))
 	utils.DoOrDie(err)
 }
 
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, httpError error, statusCode int) {
+	_, span := s.Provider.Tracer("server").Start(context.Background(), "error")
+	defer span.End()
+
 	w.WriteHeader(statusCode)
 	_, err := w.Write([]byte(httpError.Error()))
 	utils.DoOrDie(err)
