@@ -35,8 +35,19 @@ kubectl -n monitoring wait --for condition=available --timeout=90s deploy -lapp=
 #  `otel-collector.monitoring:14268` for Jaeger-thrift
 
 ## Installing Jaeger
-kubectl apply -f 6-jaeger-crds.yaml &&
-kubectl apply -f 7-jaeger.yaml &&
+kubectl apply -f 6-jaeger-crds.yaml
+
+# TODO not sure why this is necessary
+sleep 10
+
+kubectl apply -f 7-jaeger.yaml
+
+# TODO not sure why this is necessary
+sleep 20
+
 kubectl -n monitoring wait --for condition=available --timeout=90s deploy -lapp=jaeger
 
 # The Jaeger UI will be available at https://$AMBASSADOR_SERVICE_IP/jaeger/
+
+# To see the UI, port-forward the ambassador/ambassador-6b8579d65d-d4q7h pod to localhost,
+#   and go to http://localhost:8080/ in your web browser!

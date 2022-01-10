@@ -64,3 +64,7 @@ helm upgrade --install my-prom prometheus-community/prometheus \
   --debug \
   --version 14.0.0 \
   --namespace "$METRICS_NS"
+
+pushd observability
+  ./install.sh
+popd
