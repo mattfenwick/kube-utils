@@ -31,7 +31,7 @@ func AnalysisTypeSummary(obj interface{}) []string {
 		chunks := strings.Split(t[0], ".")
 		prefix := strings.Repeat("  ", len(chunks)-1)
 		typeString := fmt.Sprintf("%s%s", prefix, chunks[len(chunks)-1])
-		line := fmt.Sprintf("%-30s    %s", typeString, t[1])
+		line := fmt.Sprintf("%-60s    %s", typeString, t[1])
 		lines = append(lines, line)
 	}
 	return lines
@@ -214,9 +214,8 @@ func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []stri
 
 	logrus.Debugf("path: %+v", path)
 
-	// TODO: note that this check doesn't work correctly on earlier api specs (doesn't work on kube 1.10.13 spec)
 	if o["type"] == nil && o["$ref"] == nil {
-		return &Any{}
+		logrus.Debugf("(this happens in older specs and is probably okay) both 'type' and '$ref' are nil at: %+v , %s", pathContext, name)
 	}
 	if o["type"] != nil && o["$ref"] != nil {
 		panic(errors.Errorf("unable to parse type: both type and ref non-nil (%+v)", o))
@@ -244,25 +243,7 @@ func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []stri
 		case "(circular)":
 			return &Circular{}
 		case "object":
-			if v, ok := o["properties"]; ok {
-				fields := map[string]interface{}{}
-				for propName, property := range v.(map[string]interface{}) {
-					fields[propName] = analyzeTypeHelper(propName, property.(map[string]interface{}), append(path, propName))
-				}
-				var required []string
-				if rs, ok := o["required"]; ok {
-					required = rs.([]string)
-				}
-				return &Object{Fields: fields, Required: required}
-			} else {
-				if o["required"] != nil {
-					panic(errors.Errorf("'required' field found on dict: %+v", o))
-				} else {
-					logrus.Debugf("sanity check: Dict does not have 'required' field")
-				}
-				// TODO not sure if this is right: can we always assume dicts have elements of type string?
-				return &Dict{ElementType: &Primitive{Type: "string"}}
-			}
+			return AnalyzeObject(o, path)
 		case "array":
 			elementType := analyzeTypeHelper(name, o["items"].(map[string]interface{}), append(path, "items"))
 			return &Array{ElementType: elementType}
@@ -272,6 +253,29 @@ func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []stri
 	} else if r != nil {
 		return analyzeTypeHelper(name, r, append(path, "$ref"))
 	} else {
-		panic(errors.Errorf("shouldn't happen"))
+		// assume it's an object
+		return AnalyzeObject(o, path)
+	}
+}
+
+func AnalyzeObject(o map[string]interface{}, path []string) interface{} {
+	if v, ok := o["properties"]; ok {
+		fields := map[string]interface{}{}
+		for propName, property := range v.(map[string]interface{}) {
+			fields[propName] = analyzeTypeHelper(propName, property.(map[string]interface{}), append(path, propName))
+		}
+		var required []string
+		if rs, ok := o["required"]; ok {
+			required = rs.([]string)
+		}
+		return &Object{Fields: fields, Required: required}
+	} else {
+		if o["required"] != nil {
+			panic(errors.Errorf("'required' field found on dict: %+v", o))
+		} else {
+			logrus.Debugf("sanity check: Dict does not have 'required' field")
+		}
+		// TODO not sure if this is right: can we always assume dicts have elements of type string?
+		return &Dict{ElementType: &Primitive{Type: "string"}}
 	}
 }
