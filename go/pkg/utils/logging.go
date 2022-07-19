@@ -1,9 +1,8 @@
-package swagger
+package utils
 
 import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"sort"
 )
 
 func SetUpLogger(logLevelStr string) error {
@@ -17,13 +16,4 @@ func SetUpLogger(logLevelStr string) error {
 	})
 	logrus.Infof("log level set to '%s'", logrus.GetLevel())
 	return nil
-}
-
-func SortedKeys(dict map[string]interface{}) []string {
-	var keys []string
-	for k := range dict {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }

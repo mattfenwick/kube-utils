@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"sort"
 )
 
@@ -63,12 +64,12 @@ func JsonDiffHelper(a interface{}, b interface{}, pathContext []string, diffs *J
 		case map[string]interface{}:
 			switch bVal := b.(type) {
 			case map[string]interface{}:
-				aKeys := MapKeys(aVal)
+				aKeys := maps.Keys(aVal)
 				sort.Strings(aKeys)
 				for _, k := range aKeys {
 					JsonDiffHelper(aVal[k], bVal[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
 				}
-				bKeys := MapKeys(bVal)
+				bKeys := maps.Keys(bVal)
 				sort.Strings(bKeys)
 				for _, k := range bKeys {
 					if _, ok := aVal[k]; !ok {

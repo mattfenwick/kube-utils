@@ -18,10 +18,6 @@ func ParseKindResults() {
 		Rows:    nil,
 	}
 
-	// TODO see:
-	//  - https://raw.githubusercontent.com/kubernetes/kubernetes/v1.18.19/api/openapi-spec/swagger.json
-	//  - https://raw.githubusercontent.com/kubernetes/kubernetes/v1.23.0/api/openapi-spec/swagger.json
-
 	for _, version := range []string{
 		"1.18.19",
 		"1.19.11",
@@ -30,6 +26,9 @@ func ParseKindResults() {
 		"1.22.4",
 		"1.23.0",
 	} {
+		// TODO spin up cluster, collect data, kill cluster
+		//   instead of reading from static file
+
 		headers, rows, err := ReadCSV(fmt.Sprintf("../kube/data/v%s-api-resources.txt", version))
 		utils.DoOrDie(err)
 		rsTable, err := NewResourcesTable(version, headers, rows)

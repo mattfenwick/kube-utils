@@ -4,6 +4,7 @@ import (
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"regexp"
 	"strconv"
 )
@@ -70,7 +71,7 @@ func JsonFindBySelector(obj interface{}, selector []*Selector, context []*PathCo
 					results = append(results,
 						JsonFindBySelector(v, selector[1:], append(context, NewMapValuePathComponent(*next.Key)))...)
 				} else {
-					logrus.Infof("did not find key %s; keys: %+v", *next.Key, utils.MapKeys(o))
+					logrus.Infof("did not find key %s; keys: %+v", *next.Key, maps.Keys(o))
 				}
 
 				for k := range o {

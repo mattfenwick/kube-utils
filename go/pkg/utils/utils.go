@@ -14,24 +14,6 @@ func DoOrDie(err error) {
 	}
 }
 
-func MapKeys(dict map[string]interface{}) []string {
-	var keys []string
-	for key := range dict {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-func MapFilterEmptyValues(dict map[string]string) map[string]string {
-	out := map[string]string{}
-	for k, v := range dict {
-		if v != "" {
-			out[k] = v
-		}
-	}
-	return out
-}
-
 func Pointer(s string) *string {
 	return &s
 }

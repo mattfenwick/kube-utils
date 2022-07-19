@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-func ParseJsonSpecs() {
+func CompareJsonSpecsAcrossKubeVersions() {
 	excludeResources := []string{"WatchEvent", "DeleteOptions"}
 	includeResources := []string{
 		"Service",

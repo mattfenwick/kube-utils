@@ -6,6 +6,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 )
@@ -120,12 +121,12 @@ func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []stri
 		case *Object:
 			switch bVal := b.(type) {
 			case *Object:
-				aKeys := utils.MapKeys(aVal.Fields)
+				aKeys := maps.Keys(aVal.Fields)
 				sort.Strings(aKeys)
 				for _, k := range aKeys {
 					CompareAnalysisTypesHelper(aVal.Fields[k], bVal.Fields[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
 				}
-				bKeys := utils.MapKeys(bVal.Fields)
+				bKeys := maps.Keys(bVal.Fields)
 				sort.Strings(bKeys)
 				for _, k := range bKeys {
 					if _, ok := aVal.Fields[k]; !ok {

@@ -2,27 +2,23 @@ package swagger
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 )
 
-func setupRootCommand() *cobra.Command {
-	var verbosity string
-
+func SetupSwaggerCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "swagger",
 		Short: "work with kube swagger spec",
 		Args:  cobra.ExactArgs(0),
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return SetUpLogger(verbosity)
-		},
 	}
-
-	command.PersistentFlags().StringVar(&verbosity, "log-level", "info", "log level; one of [trace, debug, info, warn, error, fatal, panic]")
 
 	command.AddCommand(setupExplainCommand())
 	command.AddCommand(setupCompareCommand())
@@ -237,4 +233,8 @@ func RunParse(args *ParseArgs) {
 	utils.DoOrDie(err)
 
 	fmt.Printf("%s\n", bytes)
+}
+
+func SortedKeys[K constraints.Ordered, V any](xs map[K]V) []K {
+	return slice.Sort(maps.Keys(xs))
 }
