@@ -11,6 +11,10 @@ go run cmd/json-finder/main.go compare \
 
 git diff --no-index old-compare-crd.txt compare-crd.txt
 
+go run cmd/json-finder/main.go compare \
+  --version 1.18.0,1.24.2 \
+  --type NetworkPolicy,Ingress
+
 
 # explain
 go run cmd/json-finder/main.go explain \
