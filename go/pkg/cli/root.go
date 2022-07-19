@@ -30,6 +30,8 @@ func SetupRootCommand() *cobra.Command {
 
 	command.AddCommand(SetupVersionCommand())
 	command.AddCommand(setupKindCommand())
+	command.AddCommand(SetupAnalyzeYamlCommand())
+
 	swaggerCommand := swagger.SetupSwaggerCommand()
 	swaggerCommand.AddCommand(setupCompareSwaggerCommand())
 	command.AddCommand(swaggerCommand)
