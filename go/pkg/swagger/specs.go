@@ -49,16 +49,16 @@ func init() {
 	}
 }
 
-func ReadSwaggerSpec(path string) (*Spec, error) {
+func ReadSwaggerSpec[A any](path string) (*A, error) {
 	in, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read file %s", path)
 	}
 
-	obj := &Spec{}
-	err = json.Unmarshal(in, obj)
+	var obj A
+	err = json.Unmarshal(in, &obj)
 
-	return obj, errors.Wrapf(err, "unable to unmarshal json")
+	return &obj, errors.Wrapf(err, "unable to unmarshal json")
 }
 
 func MustReadSwaggerSpec(version string) *Spec {
@@ -79,7 +79,7 @@ func MustReadSwaggerSpec(version string) *Spec {
 		utils.DoOrDie(utils.JsonUnmarshalMarshal(path))
 	}
 
-	spec, err := ReadSwaggerSpec(path)
+	spec, err := ReadSwaggerSpec[Spec](path)
 	utils.DoOrDie(err)
 
 	return spec

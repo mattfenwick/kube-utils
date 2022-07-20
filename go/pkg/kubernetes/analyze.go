@@ -20,6 +20,16 @@ func BounceMarshal(in interface{}, out interface{}) error {
 	return nil
 }
 
+func BounceMarshalGeneric[A any](in interface{}) (*A, error) {
+	yamlBytes, err := goyaml.Marshal(in)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to marshal yaml")
+	}
+	var out A
+	err = yaml.UnmarshalStrict(yamlBytes, &out)
+	return &out, errors.Wrapf(err, "unable to unmarshal k8s yaml")
+}
+
 func RunAnalyzeExample(path string) {
 	objs, err := ParseManyFromFile(path)
 	utils.DoOrDie(err)

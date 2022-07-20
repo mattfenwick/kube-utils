@@ -2,13 +2,10 @@ package swagger
 
 import (
 	"fmt"
-	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/constraints"
-	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 )
@@ -23,6 +20,7 @@ func SetupSwaggerCommand() *cobra.Command {
 	command.AddCommand(setupExplainCommand())
 	command.AddCommand(setupCompareCommand())
 	command.AddCommand(setupParseCommand())
+	command.AddCommand(setupAnalyzeSchemaCommand())
 
 	return command
 }
@@ -81,13 +79,13 @@ func RunExplain(args *ExplainArgs) {
 				if analysis, ok := analyses[groupVersion]; ok {
 					filteredAnalyses[groupVersion] = analysis
 				} else {
-					logrus.Debugf("type %s not found under group/version %s (%+v)", typeName, groupVersion, SortedKeys(analyses))
+					logrus.Debugf("type %s not found under group/version %s (%+v)", typeName, groupVersion, utils.SortedKeys(analyses))
 				}
 			}
 			analyses = filteredAnalyses
 		}
 
-		gvks := SortedKeys(analyses)
+		gvks := utils.SortedKeys(analyses)
 		if len(gvks) == 0 {
 			logrus.Debugf("no group/versions found for %s", typeName)
 			continue
@@ -164,7 +162,7 @@ func RunCompare(args *CompareArgs) {
 		}
 	}
 
-	for _, typeName := range SortedKeys(typeNames) {
+	for _, typeName := range utils.SortedKeys(typeNames) {
 		fmt.Printf("inspecting type %s\n", typeName)
 
 		//resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
@@ -172,12 +170,12 @@ func RunCompare(args *CompareArgs) {
 		resolved1 := swaggerSpec1.AnalyzeType(typeName)
 		resolved2 := swaggerSpec2.AnalyzeType(typeName)
 
-		logrus.Infof("group/versions for kube %s: %+v", args.Versions[0], SortedKeys(resolved1))
-		logrus.Infof("group/versions for kube %s: %+v", args.Versions[1], SortedKeys(resolved2))
+		logrus.Infof("group/versions for kube %s: %+v", args.Versions[0], utils.SortedKeys(resolved1))
+		logrus.Infof("group/versions for kube %s: %+v", args.Versions[1], utils.SortedKeys(resolved2))
 
-		for _, groupName1 := range SortedKeys(resolved1) {
+		for _, groupName1 := range utils.SortedKeys(resolved1) {
 			type1 := resolved1[groupName1]
-			for _, groupName2 := range SortedKeys(resolved2) {
+			for _, groupName2 := range utils.SortedKeys(resolved2) {
 				type2 := resolved2[groupName2]
 				fmt.Printf("comparing %s: %s@%s vs. %s@%s\n", typeName, args.Versions[0], groupName1, args.Versions[1], groupName2)
 				for _, e := range CompareAnalysisTypes(type1, type2).Elements {
@@ -235,6 +233,35 @@ func RunParse(args *ParseArgs) {
 	fmt.Printf("%s\n", bytes)
 }
 
-func SortedKeys[K constraints.Ordered, V any](xs map[K]V) []K {
-	return slice.Sort(maps.Keys(xs))
+type AnalyzeSchemaArgs struct {
+	Version string
+}
+
+func setupAnalyzeSchemaCommand() *cobra.Command {
+	args := &AnalyzeSchemaArgs{}
+
+	command := &cobra.Command{
+		Use:   "analyze-schema",
+		Short: "analyze shape of openapi schema",
+		Args:  cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, as []string) {
+			RunAnalyzeSchema(args)
+		},
+	}
+
+	command.Flags().StringVar(&args.Version, "version", "1.24.2", "kubernetes version")
+
+	return command
+}
+
+func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
+	path := fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, args.Version)
+	specObj, err := ReadSwaggerSpec[map[string]interface{}](path)
+	utils.DoOrDie(err)
+	//spec := MustReadSwaggerSpec(args.Version) // TODO
+
+	paths := JsonFindPaths(specObj)
+	for _, p := range paths {
+		fmt.Printf("%s\n", strings.Join(p, " "))
+	}
 }
