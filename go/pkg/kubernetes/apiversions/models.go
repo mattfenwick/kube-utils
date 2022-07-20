@@ -1,10 +1,12 @@
 package apiversions
 
 import (
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"sort"
 	"strings"
@@ -27,12 +29,7 @@ type ResourceDiff struct {
 }
 
 func (r *ResourceDiff) SortedChangedKeys() []string {
-	var keys []string
-	for key := range r.Changed {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
+	return slice.Sort(maps.Keys(r.Changed))
 }
 
 func (r *ResourceDiff) Table(includes map[string]bool, skips map[string]bool) string {
@@ -67,12 +64,7 @@ type ResourcesTable struct {
 }
 
 func (r *ResourcesTable) SortedKinds() []string {
-	var kinds []string
-	for kind := range r.Kinds {
-		kinds = append(kinds, kind)
-	}
-	sort.Strings(kinds)
-	return kinds
+	return slice.Sort(maps.Keys(r.Kinds))
 }
 
 func (r *ResourcesTable) SimpleTable() string {

@@ -2,9 +2,11 @@ package kubernetes
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/graph"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 )
@@ -18,21 +20,11 @@ type Container struct {
 }
 
 func (c *Container) SecretsSlice() []string {
-	var secrets []string
-	for secret := range c.Secrets {
-		secrets = append(secrets, secret)
-	}
-	sort.Strings(secrets)
-	return secrets
+	return slice.Sort(maps.Keys(c.Secrets))
 }
 
 func (c *Container) ConfigMapsSlice() []string {
-	var cms []string
-	for cm := range c.ConfigMaps {
-		cms = append(cms, cm)
-	}
-	sort.Strings(cms)
-	return cms
+	return slice.Sort(maps.Keys(c.ConfigMaps))
 }
 
 type PodSpec struct {

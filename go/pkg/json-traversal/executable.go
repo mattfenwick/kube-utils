@@ -28,6 +28,7 @@ func Executable() {
 		panic("invalid mode")
 	}
 }
+
 func RunFindByPathNestedItems() {
 	path := os.Args[1]
 
