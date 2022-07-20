@@ -260,8 +260,13 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 	utils.DoOrDie(err)
 	//spec := MustReadSwaggerSpec(args.Version) // TODO
 
-	paths := JsonFindPaths(specObj)
+	paths, schemaPaths := JsonFindPaths(specObj)
 	for _, p := range paths {
+		if false {
+			fmt.Printf("%s\n", strings.Join(p, " "))
+		}
+	}
+	for _, p := range schemaPaths {
 		fmt.Printf("%s\n", strings.Join(p, " "))
 	}
 }
