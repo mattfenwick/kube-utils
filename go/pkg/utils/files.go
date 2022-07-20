@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"io/fs"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"sigs.k8s.io/yaml"
 )
@@ -81,19 +80,9 @@ func PrintJson(obj interface{}) {
 	fmt.Printf("%s\n", JsonString(obj))
 }
 
-func DumpJSON(obj interface{}) string {
-	bytes, err := json.MarshalIndent(obj, "", "  ")
-	DoOrDie(err)
-	return string(bytes)
-}
-
 func WriteJsonToFile(obj interface{}, path string) error {
-	content := DumpJSON(obj)
+	content := JsonString(obj)
 	return WriteFile(path, content, 0644)
-}
-
-func PrintJSON(obj interface{}) {
-	fmt.Printf("%s\n", DumpJSON(obj))
 }
 
 func DoesFileExist(path string) bool {
@@ -111,6 +100,11 @@ func WriteFile(filename string, contents string, perm fs.FileMode) error {
 	return errors.Wrapf(ioutil.WriteFile(filename, []byte(contents), perm), "unable to write file %s", filename)
 }
 
+// WriteFileBytes wraps calls to ioutil.WriteFile, ensuring that errors are wrapped in a stack trace
+func WriteFileBytes(filename string, bytes []byte, perm fs.FileMode) error {
+	return errors.Wrapf(ioutil.WriteFile(filename, bytes, perm), "unable to write file %s", filename)
+}
+
 // ReadFile wraps calls to ioutil.ReadFile, ensuring that errors are wrapped in a stack trace
 func ReadFile(filename string) (string, error) {
 	bytes, err := ioutil.ReadFile(filename)
@@ -121,23 +115,6 @@ func ReadFile(filename string) (string, error) {
 func ReadFileBytes(filename string) ([]byte, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	return bytes, errors.Wrapf(err, "unable to read file %s", filename)
-}
-
-func GetFileFromURL(url string, path string) error {
-	response, err := http.Get(url)
-	if err != nil {
-		return errors.Wrapf(err, "unable to GET %s", url)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return errors.Errorf("GET request to %s failed with status code %d", url, response.StatusCode)
-	}
-	bytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return errors.Wrapf(err, "unable to read body from GET to %s", url)
-	}
-
-	return errors.Wrapf(ioutil.WriteFile(path, bytes, 0777), "unable to write file %s", path)
 }
 
 func FileExists(path string) (bool, error) {

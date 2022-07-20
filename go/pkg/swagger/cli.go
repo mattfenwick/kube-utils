@@ -21,6 +21,7 @@ func SetupSwaggerCommand() *cobra.Command {
 	command.AddCommand(setupCompareCommand())
 	command.AddCommand(setupParseCommand())
 	command.AddCommand(setupAnalyzeSchemaCommand())
+	command.AddCommand(setupTestSchemaParserCommand())
 
 	return command
 }

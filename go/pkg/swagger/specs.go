@@ -85,6 +85,12 @@ func MustReadSwaggerSpec(version string) *Spec {
 	return spec
 }
 
+func DownloadSwaggerSpec(version string) []byte {
+	bytes, err := utils.GetURL(BuildSwaggerSpecsURLFromKubeVersion(version))
+	utils.DoOrDie(err)
+	return bytes
+}
+
 func MakePathFromKubeVersion(version string) string {
 	return fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, version)
 }

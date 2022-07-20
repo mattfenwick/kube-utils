@@ -86,3 +86,9 @@ func JsonUnmarshalMarshal(path string) error {
 	}
 	return WriteJson(path, obj)
 }
+
+func JsonUnmarshalMarshalFromBytes(contents []byte) string {
+	obj, err := ParseJson[map[string]interface{}](contents)
+	DoOrDie(err)
+	return JsonString(obj)
+}
