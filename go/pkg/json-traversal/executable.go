@@ -2,6 +2,7 @@ package json_traversal
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -42,11 +43,10 @@ func RunFindByPathNestedItems() {
 		{Key: utils.Pointer("items")},
 	}
 
-	var obj map[string]interface{}
-	err := utils.ReadJson(path, &obj)
+	obj, err := json.ParseFile[map[string]interface{}](path)
 	utils.DoOrDie(errors.Wrapf(err, "unable to read json from %s", path))
 
-	results := JsonFindBySelector(obj, nestedItemsSelector, []*PathComponent{})
+	results := JsonFindBySelector(*obj, nestedItemsSelector, []*PathComponent{})
 
 	if len(results) == 0 {
 		fmt.Println("found 0 results")
@@ -69,11 +69,10 @@ func RunFindByPath() {
 	}
 	// ["definitions"]["io.k8s.api.extensions.v1beta1.Ingress"]["x-kubernetes-group-version-kind"][0]["kind"]
 
-	var obj map[string]interface{}
-	err := utils.ReadJson(path, obj)
+	obj, err := json.ParseFile[map[string]interface{}](path)
 	utils.DoOrDie(errors.Wrapf(err, "unable to read json from %s", path))
 
-	results := JsonFindBySelector(obj, selector, []*PathComponent{})
+	results := JsonFindBySelector(*obj, selector, []*PathComponent{})
 
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Value.(string) < results[j].Value.(string)
@@ -101,7 +100,7 @@ type FindByRegexArgs struct {
 }
 
 func (a *FindByRegexArgs) Json() string {
-	bytes, err := utils.MarshalIndent(a, "", "  ")
+	bytes, err := json.Marshal(a)
 	utils.DoOrDie(errors.Wrapf(err, "unable to marshal json for FindByRegexArgs"))
 	return string(bytes)
 }
@@ -133,7 +132,8 @@ func setupFindByRegexCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, as []string) {
 			args := &FindByRegexArgs{}
-			utils.DoOrDie(utils.ReadJson(configPath, &args))
+			args, err := json.ParseFile[FindByRegexArgs](configPath)
+			utils.DoOrDie(err)
 			RunFindInJsonByRegex(args)
 		},
 	}
@@ -164,22 +164,21 @@ func RunFindInJsonByRegex(args *FindByRegexArgs) {
 	path := args.File
 	regexString := args.Regex
 
-	var obj map[string]interface{}
-
-	utils.DoOrDie(utils.ReadJson(path, &obj))
+	obj, err := json.ParseFile[map[string]interface{}](path)
+	utils.DoOrDie(err)
 
 	re := regexp.MustCompile(regexString)
 	var matches []*KeyMatch
 
 	if len(args.StartPath) > 0 {
-		pathSelectorResults := JsonFindBySelector(obj, args.StartPathSelector(), []*PathComponent{})
+		pathSelectorResults := JsonFindBySelector(*obj, args.StartPathSelector(), []*PathComponent{})
 
 		for _, result := range pathSelectorResults {
 			logrus.Infof("searching under: %s", PathString(result.Path))
-			matches = append(matches, JsonFindByRegex(JsonFindByPath(obj, result.Path), result.Path, re)...)
+			matches = append(matches, JsonFindByRegex(JsonFindByPath(*obj, result.Path), result.Path, re)...)
 		}
 	} else {
-		matches = append(matches, JsonFindByRegex(obj, []*PathComponent{}, re)...)
+		matches = append(matches, JsonFindByRegex(*obj, []*PathComponent{}, re)...)
 	}
 
 	for _, match := range matches {

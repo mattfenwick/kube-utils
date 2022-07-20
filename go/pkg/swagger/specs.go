@@ -3,6 +3,7 @@ package swagger
 import (
 	"encoding/json"
 	"fmt"
+	collections_json "github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -76,7 +77,7 @@ func MustReadSwaggerSpec(version string) *Spec {
 		utils.DoOrDie(utils.GetFileFromURL(BuildSwaggerSpecsURLFromKubeVersion(version), path))
 
 		// get the keys sorted
-		utils.DoOrDie(utils.JsonUnmarshalMarshal(path))
+		utils.DoOrDie(collections_json.SortFileOptions(path, false, true))
 	}
 
 	spec, err := ReadSwaggerSpec[Spec](path)

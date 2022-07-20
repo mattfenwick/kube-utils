@@ -2,6 +2,7 @@ package swagger
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -227,8 +228,7 @@ func RunParse(args *ParseArgs) {
 	}
 
 	// must do weird marshal/unmarshal/marshal dance to get struct keys sorted
-	normalizedSpec := utils.MustJsonRemarshal(spec)
-	bytes, err := utils.MarshalIndent(normalizedSpec, "", "  ")
+	bytes, err := json.MarshalWithOptions(spec, &json.MarshalOptions{EscapeHTML: true, Indent: true, Sort: true})
 	utils.DoOrDie(err)
 
 	fmt.Printf("%s\n", bytes)
