@@ -1,13 +1,12 @@
 package swagger
 
 import (
-	"encoding/json"
 	"fmt"
-	collections_json "github.com/mattfenwick/collections/pkg/json"
+	"github.com/mattfenwick/collections/pkg/file"
+	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"os"
 )
 
@@ -51,33 +50,22 @@ func init() {
 }
 
 func ReadSwaggerSpec[A any](path string) (*A, error) {
-	in, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read file %s", path)
-	}
-
-	var obj A
-	err = json.Unmarshal(in, &obj)
-
-	return &obj, errors.Wrapf(err, "unable to unmarshal json")
+	return json.ParseFile[A](path)
 }
 
 func MustReadSwaggerSpec(version string) *Spec {
 	path := fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, version)
 
-	exists, err := utils.FileExists(path)
-	utils.DoOrDie(err)
-
-	if !exists {
+	if !file.Exists(path) {
 		logrus.Infof("file for version %s not found (path %s); downloading instead", version, path)
 
-		err = os.MkdirAll(SpecsRootDirectory, 0777)
+		err := os.MkdirAll(SpecsRootDirectory, 0777)
 		utils.DoOrDie(errors.Wrapf(err, "unable to mkdir %s", SpecsRootDirectory))
 
 		utils.DoOrDie(utils.GetFileFromURL(BuildSwaggerSpecsURLFromKubeVersion(version), path))
 
 		// get the keys sorted
-		utils.DoOrDie(collections_json.SortFileOptions(path, false, true))
+		utils.DoOrDie(json.SortFileOptions(path, false, true))
 	}
 
 	spec, err := ReadSwaggerSpec[Spec](path)

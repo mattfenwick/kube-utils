@@ -2,7 +2,9 @@ package swagger
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/file"
 	"github.com/mattfenwick/collections/pkg/json"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -236,6 +238,7 @@ func RunParse(args *ParseArgs) {
 
 type AnalyzeSchemaArgs struct {
 	Version string
+	All     bool
 }
 
 func setupAnalyzeSchemaCommand() *cobra.Command {
@@ -251,17 +254,25 @@ func setupAnalyzeSchemaCommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&args.Version, "version", "1.24.2", "kubernetes version")
+	command.Flags().BoolVar(&args.All, "all", false, "if true, analyze all latest versions")
 
 	return command
 }
 
 func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
+	if args.All {
+		RunAnalyzeSchemaLatest()
+		return
+	}
+
 	path := fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, args.Version)
 	specObj, err := ReadSwaggerSpec[map[string]interface{}](path)
 	utils.DoOrDie(err)
 	//spec := MustReadSwaggerSpec(args.Version) // TODO
 
-	paths, schemaPaths := JsonFindPaths(specObj)
+	//starterPaths := []string{"paths", "definitions"}
+	starterPaths := []string{"definitions"}
+	paths, schemaPaths := JsonFindPaths(specObj, starterPaths)
 	for _, p := range paths {
 		if false {
 			fmt.Printf("%s\n", strings.Join(p, " "))
@@ -269,5 +280,30 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 	}
 	for _, p := range schemaPaths {
 		fmt.Printf("%s\n", strings.Join(p, " "))
+	}
+}
+
+func RunAnalyzeSchemaLatest() {
+	for _, version := range LatestKubePatchVersions {
+		path := fmt.Sprintf("test-schema/%s.txt", version)
+		specBytes := DownloadSwaggerSpec(version)
+		specObj, err := json.Parse[map[string]interface{}](specBytes)
+		utils.DoOrDie(err)
+		//spec := MustReadSwaggerSpec(args.Version) // TODO
+
+		//starterPathsToInspect := []string{"paths", "definitions"}
+		starterPathsToInspect := []string{"definitions"}
+		schemaPaths, dedupedPaths := JsonFindPaths(specObj, starterPathsToInspect)
+		for _, p := range schemaPaths {
+			if false {
+				fmt.Printf("%s\n", strings.Join(p, " "))
+			}
+		}
+		lines := slice.Map(func(xs []string) string { return strings.Join(xs, " ") }, dedupedPaths)
+		err = file.Write(path, []byte(strings.Join(lines, "\n")), 0644)
+		utils.DoOrDie(err)
+		//for _, p := range dedupedPaths {
+		//	fmt.Printf("%s\n", strings.Join(p, " "))
+		//}
 	}
 }

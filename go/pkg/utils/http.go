@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/mattfenwick/collections/pkg/file"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +12,7 @@ func GetFileFromURL(url string, path string) error {
 	if err != nil {
 		return err
 	}
-	return WriteFileBytes(path, bytes, 0777)
+	return file.Write(path, bytes, 0777)
 }
 
 func GetURL(url string) ([]byte, error) {

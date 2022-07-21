@@ -115,6 +115,9 @@ func (d *Definition) ResolveToJsonBlob(resolve func(string) (string, *Definition
 	return out
 }
 
+// Spec models kubernetes API specs for version 14 and later
+//   Version 13 and earlier use a slightly different schema and
+//   so should not be handled with this type.
 type Spec struct {
 	Definitions map[string]*Definition `json:"definitions"`
 	Info        struct {

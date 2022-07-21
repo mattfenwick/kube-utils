@@ -6,7 +6,8 @@ import (
 	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/spf13/cobra"
-	"os/exec"
+	"os"
+	"path"
 	"reflect"
 )
 
@@ -24,30 +25,43 @@ func setupTestSchemaParserCommand() *cobra.Command {
 }
 
 func TestSchemaParser() {
-	version := "1.8.15"
+	schemaDir := "test-schema"
+	for _, version := range LatestKubePatchVersions {
+		CheckSchema(path.Join(schemaDir, version), version)
+	}
+}
 
+func CheckSchema(dir string, version string) {
 	specBytes := DownloadSwaggerSpec(version)
-	spec, err := utils.ParseJson[Spec](specBytes)
+	// remove paths
+	specMap, err := json.Parse[map[string]interface{}](specBytes)
+	utils.DoOrDie(err)
+	delete(*specMap, "paths")
+	specMapBytes, err := json.MarshalWithOptions(specMap, json.DefaultMarshalOptions)
+	utils.DoOrDie(err)
+	// carry on
+	spec, err := json.Parse[Spec](specMapBytes)
 	utils.DoOrDie(err)
 
-	specString := utils.JsonString(spec)
-	spec2, err := utils.ParseJson[Spec]([]byte(specString))
+	specString, err := json.MarshalToString(spec)
+	utils.DoOrDie(err)
+	spec2, err := json.Parse[Spec]([]byte(specString))
 	utils.DoOrDie(err)
 
-	//options := &json.MarshalOptions{EscapeHTML: false, Indent: true, Sort: true}
-	//utils.DoOrDie(json.MarshalToFileOptions(spec, "my-spec-1.txt", options))
-	//utils.DoOrDie(json.MarshalToFileOptions(spec2, "my-spec-2.txt", options))
+	utils.DoOrDie(os.MkdirAll(dir, 0777))
+	path1, path2 := path.Join(dir, "spec1.txt"), path.Join(dir, "spec2.txt")
 
-	sortedSpecBytes, err := json.SortOptions(specBytes, false, true)
+	sortedSpecBytes, err := json.SortOptions(specMapBytes, false, true)
 	utils.DoOrDie(err)
-	utils.DoOrDie(file.Write("my-spec-1.txt", sortedSpecBytes, 0644))
+	utils.DoOrDie(file.Write(path1, sortedSpecBytes, 0644))
+
 	sortedSpecStringBytes, err := json.SortOptions([]byte(specString), false, true)
 	utils.DoOrDie(err)
-	utils.DoOrDie(file.Write("my-spec-2.txt", sortedSpecStringBytes, 0644))
+	utils.DoOrDie(file.Write(path2, sortedSpecStringBytes, 0644))
 
-	diff, err := utils.CommandRun(exec.Command("git", "diff", "--no-index", "my-spec-1.txt", "my-spec-2.txt"))
-	utils.DoOrDie(err)
-	fmt.Printf("%s\n", diff)
+	//diff, err := utils.CommandRun(exec.Command("git", "diff", "--no-index", "my-spec-1.txt", "my-spec-2.txt"))
+	//utils.DoOrDie(err)
+	//fmt.Printf("%s\n", diff)
 	//spec := MustReadSwaggerSpec(version)
 	//specString := utils.JsonString(spec)
 	//

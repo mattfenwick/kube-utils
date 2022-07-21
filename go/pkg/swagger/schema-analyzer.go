@@ -61,7 +61,7 @@ func (t *Trie) GetPaths(pathContext []string, paths *JsonPaths) {
 	}
 }
 
-func JsonFindPaths(obj interface{}) ([][]string, [][]string) {
+func JsonFindPaths(obj interface{}, starterPaths []string) ([][]string, [][]string) {
 	paths := &JsonPaths{}
 	bouncedObj, err := kubernetes.BounceMarshalGeneric[map[string]interface{}](obj)
 	utils.DoOrDie(err)
@@ -69,7 +69,7 @@ func JsonFindPaths(obj interface{}) ([][]string, [][]string) {
 
 	trie := NewTrie()
 	schemaPaths := &JsonPaths{}
-	for _, key := range []string{"paths", "definitions"} {
+	for _, key := range starterPaths {
 		nextLevel := (*bouncedObj)[key].(map[string]interface{})
 		for _, val := range nextLevel {
 			JsonFindPathsHelper(val, []string{key}, schemaPaths)

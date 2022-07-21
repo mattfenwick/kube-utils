@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -26,9 +27,11 @@ func SetupVersionCommand() *cobra.Command {
 }
 
 func RunVersionCommand() {
-	fmt.Printf("KubeUtils version: \n%s\n", utils.JsonString(map[string]string{
+	jsonString, err := json.MarshalToString(map[string]string{
 		"Version":   version,
 		"GitSHA":    gitSHA,
 		"BuildTime": buildTime,
-	}))
+	})
+	utils.DoOrDie(err)
+	fmt.Printf("KubeUtils version: \n%s\n", jsonString)
 }
