@@ -30,7 +30,3 @@ go run cmd/api-inspector/main.go swagger explain \
 
 # parse
 go run cmd/api-inspector/main.go swagger parse --version 1.18.19
-
-
-## yaml
-go run cmd/api-inspector/main.go analyze-yaml --path ./example.yaml
