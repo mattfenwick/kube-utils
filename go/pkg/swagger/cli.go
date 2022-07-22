@@ -265,8 +265,8 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 		return
 	}
 
-	path := fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, args.Version)
-	specObj, err := ReadSwaggerSpec[map[string]interface{}](path)
+	path := MakePathFromKubeVersion(args.Version)
+	specObj, err := ReadSwaggerSpecFromFile[map[string]interface{}](path)
 	utils.DoOrDie(err)
 	//spec := MustReadSwaggerSpec(args.Version) // TODO
 

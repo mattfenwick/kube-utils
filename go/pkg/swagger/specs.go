@@ -49,28 +49,42 @@ func init() {
 	}
 }
 
-func ReadSwaggerSpec[A any](path string) (*A, error) {
+func ReadSwaggerSpecFromFile[A any](path string) (*A, error) {
 	return json.ParseFile[A](path)
 }
 
-func MustReadSwaggerSpec(version string) *Spec {
-	path := fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, version)
+func ReadSwaggerSpecFromGithub(version string) (*Spec, error) {
+	path := MakePathFromKubeVersion(version)
 
 	if !file.Exists(path) {
 		logrus.Infof("file for version %s not found (path %s); downloading instead", version, path)
 
 		err := os.MkdirAll(SpecsRootDirectory, 0777)
-		utils.DoOrDie(errors.Wrapf(err, "unable to mkdir %s", SpecsRootDirectory))
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to mkdir %s", SpecsRootDirectory)
+		}
 
-		utils.DoOrDie(utils.GetFileFromURL(BuildSwaggerSpecsURLFromKubeVersion(version), path))
+		err = utils.GetFileFromURL(BuildSwaggerSpecsURLFromKubeVersion(version), path)
+		if err != nil {
+			return nil, err
+		}
 
 		// get the keys sorted
-		utils.DoOrDie(json.SortFileOptions(path, false, true))
+		err = json.SortFileOptions(path, false, true)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	spec, err := ReadSwaggerSpec[Spec](path)
+	spec, err := ReadSwaggerSpecFromFile[Spec](path)
 	utils.DoOrDie(err)
 
+	return spec, nil
+}
+
+func MustReadSwaggerSpec(version string) *Spec {
+	spec, err := ReadSwaggerSpecFromGithub(version)
+	utils.DoOrDie(err)
 	return spec
 }
 
