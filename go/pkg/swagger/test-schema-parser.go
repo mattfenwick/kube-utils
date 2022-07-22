@@ -27,11 +27,11 @@ func setupTestSchemaParserCommand() *cobra.Command {
 func TestSchemaParser() {
 	schemaDir := "test-schema"
 	for _, version := range LatestKubePatchVersions {
-		CheckSchema(path.Join(schemaDir, version), version)
+		CheckSchema(path.Join(schemaDir, version.ToString()), version)
 	}
 }
 
-func CheckSchema(dir string, version string) {
+func CheckSchema(dir string, version Version) {
 	specBytes := DownloadSwaggerSpec(version)
 	// remove paths
 	specMap, err := json.Parse[map[string]interface{}](specBytes)
@@ -40,12 +40,12 @@ func CheckSchema(dir string, version string) {
 	specMapBytes, err := json.MarshalWithOptions(specMap, json.DefaultMarshalOptions)
 	utils.DoOrDie(err)
 	// carry on
-	spec, err := json.Parse[Spec](specMapBytes)
+	spec, err := json.Parse[Kube14OrNewerSpec](specMapBytes)
 	utils.DoOrDie(err)
 
 	specString, err := json.MarshalToString(spec)
 	utils.DoOrDie(err)
-	spec2, err := json.Parse[Spec]([]byte(specString))
+	spec2, err := json.Parse[Kube14OrNewerSpec]([]byte(specString))
 	utils.DoOrDie(err)
 
 	utils.DoOrDie(os.MkdirAll(dir, 0777))

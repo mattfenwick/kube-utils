@@ -57,7 +57,7 @@ func setupExplainCommand() *cobra.Command {
 }
 
 func RunExplain(args *ExplainArgs) {
-	swaggerSpec := MustReadSwaggerSpec(args.Version)
+	swaggerSpec := MustReadSwaggerSpec(MustVersion(args.Version))
 
 	// no types specified?  use them all
 	//   otherwise, filter down to just the ones requested
@@ -149,8 +149,8 @@ func RunCompare(args *CompareArgs) {
 		panic(errors.Errorf("expected 2 kube versions, found %+v", args.Versions))
 	}
 
-	swaggerSpec1 := MustReadSwaggerSpec(args.Versions[0])
-	swaggerSpec2 := MustReadSwaggerSpec(args.Versions[1])
+	swaggerSpec1 := MustReadSwaggerSpec(MustVersion(args.Versions[0]))
+	swaggerSpec2 := MustReadSwaggerSpec(MustVersion(args.Versions[1]))
 
 	typeNames := map[string]interface{}{}
 	if len(args.TypeNames) > 0 {
@@ -221,7 +221,7 @@ func setupParseCommand() *cobra.Command {
 }
 
 func RunParse(args *ParseArgs) {
-	spec := MustReadSwaggerSpec(args.Version)
+	spec := MustReadSwaggerSpec(MustVersion(args.Version))
 
 	for name, t := range spec.Definitions {
 		for propName, prop := range t.Properties {
@@ -265,7 +265,7 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 		return
 	}
 
-	path := MakePathFromKubeVersion(args.Version)
+	path := MakePathFromKubeVersion(MustVersion(args.Version))
 	specObj, err := ReadSwaggerSpecFromFile[map[string]interface{}](path)
 	utils.DoOrDie(err)
 	//spec := MustReadSwaggerSpec(args.Version) // TODO

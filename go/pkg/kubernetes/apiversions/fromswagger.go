@@ -40,7 +40,7 @@ func CompareJsonSpecsAcrossKubeVersions() {
 		obj := swagger.MustReadSwaggerSpec(version)
 
 		resourcesTable := &ResourcesTable{
-			Version: version,
+			Version: version.ToString(),
 			Kinds:   map[string][]string{},
 		}
 		for a, b := range obj.Definitions {

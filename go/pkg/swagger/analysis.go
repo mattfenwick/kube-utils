@@ -194,7 +194,7 @@ type Any struct{}
 
 type Circular struct{} // TODO at some point, add in a string to refer to type by name?
 
-func (s *Spec) AnalyzeType(typeName string) map[string]interface{} {
+func (s *Kube14OrNewerSpec) AnalyzeType(typeName string) map[string]interface{} {
 	jsonBlob := s.ResolveToJsonBlob(typeName)
 	out := map[string]interface{}{}
 	var sortedGroups []string

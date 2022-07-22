@@ -115,10 +115,10 @@ func (d *Definition) ResolveToJsonBlob(resolve func(string) (string, *Definition
 	return out
 }
 
-// Spec models kubernetes API specs for version 14 and later
+// Kube14OrNewerSpec models kubernetes API specs for version 14 and later
 //   Version 13 and earlier use a slightly different schema and
 //   so should not be handled with this type.
-type Spec struct {
+type Kube14OrNewerSpec struct {
 	Definitions map[string]*Definition `json:"definitions"`
 	Info        struct {
 		Title   string `json:"title"`
@@ -130,7 +130,7 @@ type Spec struct {
 	//SecurityDefinitions int
 }
 
-func (s *Spec) ResolveRef(ref string) (string, *Definition) {
+func (s *Kube14OrNewerSpec) ResolveRef(ref string) (string, *Definition) {
 	typeName := ParseRef(ref)
 	resolvedType, ok := s.Definitions[typeName]
 	if !ok {
@@ -140,7 +140,7 @@ func (s *Spec) ResolveRef(ref string) (string, *Definition) {
 	return typeName, resolvedType
 }
 
-func (s *Spec) DefinitionsByNameByGroup() map[string]map[string]*Definition {
+func (s *Kube14OrNewerSpec) DefinitionsByNameByGroup() map[string]map[string]*Definition {
 	if s.definitionsByNameCache == nil {
 		s.definitionsByNameCache = map[string]map[string]*Definition{}
 		for name, def := range s.Definitions {
@@ -162,7 +162,7 @@ func (s *Spec) DefinitionsByNameByGroup() map[string]map[string]*Definition {
 	return s.definitionsByNameCache
 }
 
-func (s *Spec) VersionKindLengths() []string {
+func (s *Kube14OrNewerSpec) VersionKindLengths() []string {
 	var lengths []string
 	for name, def := range s.Definitions {
 		lengths = append(lengths, fmt.Sprintf("%d: %s", len(def.XKubernetesGroupVersionKind), name))
@@ -170,7 +170,7 @@ func (s *Spec) VersionKindLengths() []string {
 	return lengths
 }
 
-func (s *Spec) ResolveAllToJsonBlob() map[string]interface{} {
+func (s *Kube14OrNewerSpec) ResolveAllToJsonBlob() map[string]interface{} {
 	out := map[string]interface{}{}
 	for name, def := range s.Definitions {
 		out[name] = def.ResolveToJsonBlob(s.ResolveRef, []string{"definitions", name}, map[string]bool{})
@@ -178,7 +178,7 @@ func (s *Spec) ResolveAllToJsonBlob() map[string]interface{} {
 	return out
 }
 
-func (s *Spec) ResolveToJsonBlob(name string) map[string]interface{} {
+func (s *Kube14OrNewerSpec) ResolveToJsonBlob(name string) map[string]interface{} {
 	out := map[string]interface{}{}
 	for groupName, def := range s.DefinitionsByNameByGroup()[name] {
 		out[groupName] = def.ResolveToJsonBlob(s.ResolveRef, []string{groupName, name}, map[string]bool{})
