@@ -7,20 +7,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func RunRootCommand() {
-	command := SetupRootCommand()
-	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root command"))
+func RunRootSchemaCommand() {
+	command := SetupRootSchemaCommand()
+	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root schema command"))
 }
 
-type RootFlags struct {
+type RootSchemaFlags struct {
 	Verbosity string
 }
 
-func SetupRootCommand() *cobra.Command {
-	flags := &RootFlags{}
+func SetupRootSchemaCommand() *cobra.Command {
+	flags := &RootSchemaFlags{}
 	command := &cobra.Command{
-		Use:   "utils",                      // TODO need unique name
-		Short: "utilities for kube hacking", // TODO need focus
+		Use:   "schema",
+		Short: "schema inspection utilities",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return utils.SetUpLogger(flags.Verbosity)
 		},
@@ -29,9 +29,9 @@ func SetupRootCommand() *cobra.Command {
 	command.PersistentFlags().StringVarP(&flags.Verbosity, "verbosity", "v", "info", "log level; one of [info, debug, trace, warn, error, fatal, panic]")
 
 	command.AddCommand(SetupVersionCommand())
-	command.AddCommand(setupKindCommand())
-	command.AddCommand(SetupAnalyzeYamlCommand())
-	command.AddCommand(swagger.SetupSwaggerDebugCommand())
+	command.AddCommand(swagger.SetupExplainCommand())
+	command.AddCommand(swagger.SetupCompareCommand())
+	command.AddCommand(setupCompareSwaggerCommand())
 
 	return command
 }

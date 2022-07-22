@@ -13,15 +13,13 @@ import (
 	"strings"
 )
 
-func SetupSwaggerCommand() *cobra.Command {
+func SetupSwaggerDebugCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:   "swagger",
-		Short: "work with kube swagger spec",
+		Use:   "swagger-debug",
+		Short: "debug kube swagger spec",
 		Args:  cobra.ExactArgs(0),
 	}
 
-	command.AddCommand(setupExplainCommand())
-	command.AddCommand(setupCompareCommand())
 	command.AddCommand(setupParseCommand())
 	command.AddCommand(setupAnalyzeSchemaCommand())
 	command.AddCommand(setupTestSchemaParserCommand())
@@ -36,7 +34,7 @@ type ExplainArgs struct {
 	Version       string
 }
 
-func setupExplainCommand() *cobra.Command {
+func SetupExplainCommand() *cobra.Command {
 	args := &ExplainArgs{}
 
 	command := &cobra.Command{
@@ -118,7 +116,7 @@ type CompareArgs struct {
 	PrintValues      bool
 }
 
-func setupCompareCommand() *cobra.Command {
+func SetupCompareCommand() *cobra.Command {
 	args := &CompareArgs{}
 
 	command := &cobra.Command{
