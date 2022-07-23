@@ -99,7 +99,7 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 
 	//starterPaths := []string{"paths", "definitions"}
 	starterPaths := []string{"definitions"}
-	paths, schemaPaths := swagger.JsonFindPaths(specObj, starterPaths)
+	paths, schemaPaths := JsonFindPaths(specObj, starterPaths)
 	for _, p := range paths {
 		if false {
 			fmt.Printf("%s\n", strings.Join(p, " "))
@@ -120,7 +120,7 @@ func RunAnalyzeSchemaLatest() {
 
 		//starterPathsToInspect := []string{"paths", "definitions"}
 		starterPathsToInspect := []string{"definitions"}
-		schemaPaths, dedupedPaths := swagger.JsonFindPaths(specObj, starterPathsToInspect)
+		schemaPaths, dedupedPaths := JsonFindPaths(specObj, starterPathsToInspect)
 		for _, p := range schemaPaths {
 			if false {
 				fmt.Printf("%s\n", strings.Join(p, " "))

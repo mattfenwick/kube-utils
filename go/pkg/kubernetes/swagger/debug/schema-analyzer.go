@@ -1,4 +1,4 @@
-package swagger
+package debug
 
 import (
 	"fmt"
