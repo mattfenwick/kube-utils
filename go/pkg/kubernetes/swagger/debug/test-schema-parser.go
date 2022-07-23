@@ -1,9 +1,10 @@
-package swagger
+package debug
 
 import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/file"
 	"github.com/mattfenwick/collections/pkg/json"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -26,13 +27,13 @@ func setupTestSchemaParserCommand() *cobra.Command {
 
 func TestSchemaParser() {
 	schemaDir := "test-schema"
-	for _, version := range LatestKubePatchVersions {
+	for _, version := range swagger.LatestKubePatchVersions {
 		CheckSchema(path.Join(schemaDir, version.ToString()), version)
 	}
 }
 
-func CheckSchema(dir string, version Version) {
-	specBytes := DownloadSwaggerSpec(version)
+func CheckSchema(dir string, version swagger.Version) {
+	specBytes := swagger.DownloadSwaggerSpec(version)
 	// remove paths
 	specMap, err := json.Parse[map[string]interface{}](specBytes)
 	utils.DoOrDie(err)
@@ -40,12 +41,12 @@ func CheckSchema(dir string, version Version) {
 	specMapBytes, err := json.MarshalWithOptions(specMap, json.DefaultMarshalOptions)
 	utils.DoOrDie(err)
 	// carry on
-	spec, err := json.Parse[Kube14OrNewerSpec](specMapBytes)
+	spec, err := json.Parse[swagger.Kube14OrNewerSpec](specMapBytes)
 	utils.DoOrDie(err)
 
 	specString, err := json.MarshalToString(spec)
 	utils.DoOrDie(err)
-	spec2, err := json.Parse[Kube14OrNewerSpec]([]byte(specString))
+	spec2, err := json.Parse[swagger.Kube14OrNewerSpec]([]byte(specString))
 	utils.DoOrDie(err)
 
 	utils.DoOrDie(os.MkdirAll(dir, 0777))

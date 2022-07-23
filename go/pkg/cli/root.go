@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger/debug"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -31,7 +31,7 @@ func SetupRootCommand() *cobra.Command {
 	command.AddCommand(SetupVersionCommand())
 	command.AddCommand(setupKindCommand())
 	command.AddCommand(SetupAnalyzeYamlCommand())
-	command.AddCommand(swagger.SetupSwaggerDebugCommand())
+	command.AddCommand(debug.SetupSwaggerDebugCommand())
 
 	return command
 }
