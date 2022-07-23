@@ -18,7 +18,7 @@ func ReadSwaggerSpecFromFile[A any](path string) (*A, error) {
 	return json.ParseFile[A](path)
 }
 
-func ReadSwaggerSpecFromGithub(version Version) (*Kube14OrNewerSpec, error) {
+func ReadSwaggerSpecFromGithub(version KubeVersion) (*Kube14OrNewerSpec, error) {
 	path := MakePathFromKubeVersion(version)
 
 	if !file.Exists(path) {
@@ -47,18 +47,18 @@ func ReadSwaggerSpecFromGithub(version Version) (*Kube14OrNewerSpec, error) {
 	return spec, nil
 }
 
-func MustReadSwaggerSpec(version Version) *Kube14OrNewerSpec {
+func MustReadSwaggerSpec(version KubeVersion) *Kube14OrNewerSpec {
 	spec, err := ReadSwaggerSpecFromGithub(version)
 	utils.DoOrDie(err)
 	return spec
 }
 
-func DownloadSwaggerSpec(version Version) []byte {
+func DownloadSwaggerSpec(version KubeVersion) []byte {
 	bytes, err := utils.GetURL(version.SwaggerSpecURL())
 	utils.DoOrDie(err)
 	return bytes
 }
 
-func MakePathFromKubeVersion(version Version) string {
+func MakePathFromKubeVersion(version KubeVersion) string {
 	return fmt.Sprintf("%s/%s-swagger-spec.json", SpecsRootDirectory, version.ToString())
 }

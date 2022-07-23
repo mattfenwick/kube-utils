@@ -32,7 +32,7 @@ func TestSchemaParser() {
 	}
 }
 
-func CheckSchema(dir string, version swagger.Version) {
+func CheckSchema(dir string, version swagger.KubeVersion) {
 	specBytes := swagger.DownloadSwaggerSpec(version)
 	// remove paths
 	specMap, err := json.Parse[map[string]interface{}](specBytes)
