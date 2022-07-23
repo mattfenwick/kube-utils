@@ -53,14 +53,6 @@ func DiffJsonValues(a interface{}, b interface{}) *JsonDocumentDiffs {
 	return diffs
 }
 
-func CopySlice(s []string) []string {
-	out := make([]string, len(s))
-	for i, x := range s {
-		out[i] = x
-	}
-	return out
-}
-
 func JsonDiffHelper(a interface{}, b interface{}, pathContext []string, diffs *JsonDocumentDiffs) {
 	// make a copy to avoid aliasing
 	//path := CopySlice(pathContext)

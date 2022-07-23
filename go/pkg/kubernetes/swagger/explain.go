@@ -3,6 +3,7 @@ package swagger
 import (
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"sort"
@@ -51,9 +52,9 @@ func RunExplain(args *ExplainArgs) {
 			analysis := analyses[groupVersion]
 			switch args.Format {
 			case "table":
-				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, AnalysisTypeTable(analysis))
+				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, ExplainTypeTable(analysis))
 			case "condensed":
-				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(AnalysisTypeSummary(analysis), "\n"))
+				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(ExplainTypeSummary(analysis), "\n"))
 			default:
 				panic(errors.Errorf("invalid output format: %s", args.Format))
 			}
@@ -61,4 +62,66 @@ func RunExplain(args *ExplainArgs) {
 		}
 		fmt.Println()
 	}
+}
+
+func ExplainTypeTable(o interface{}) string {
+	tableString := &strings.Builder{}
+	table := tablewriter.NewWriter(tableString)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.SetColMinWidth(1, 100)
+	table.SetHeader([]string{"Type", "Field"})
+	for _, values := range ResolveExplainType(o, []string{}) {
+		table.Append([]string{values[1], values[0]})
+	}
+	table.Render()
+	return tableString.String()
+}
+
+func ExplainTypeSummary(obj interface{}) []string {
+	var lines []string
+	for _, t := range ResolveExplainType(obj, []string{}) {
+		chunks := strings.Split(t[0], ".")
+		prefix := strings.Repeat("  ", len(chunks)-1)
+		typeString := fmt.Sprintf("%s%s", prefix, chunks[len(chunks)-1])
+		line := fmt.Sprintf("%-60s    %s", typeString, t[1])
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+func ResolveExplainType(obj interface{}, pathContext []string) [][2]string {
+	path := make([]string, len(pathContext))
+	copy(path, pathContext)
+
+	logrus.Debugf("path: %+v", path)
+
+	var out [][2]string
+	switch o := obj.(type) {
+	case *Any:
+		out = append(out, [2]string{strings.Join(path, "."), "(any)"})
+	case *Circular:
+		out = append(out, [2]string{strings.Join(path, "."), "(circular)"})
+	case *Primitive:
+		out = append(out, [2]string{strings.Join(path, "."), o.Type})
+	case *Array:
+		out = append(out, [2]string{strings.Join(path, "."), "array"})
+		out = append(out, ResolveExplainType(o.ElementType, append(path, "[]"))...)
+	case *Dict:
+		out = append(out, [2]string{strings.Join(path, "."), "map[string]string"})
+	case *Object:
+		out = append(out, [2]string{strings.Join(path, "."), "object"})
+		var sortedFields []string
+		for fieldName := range o.Fields {
+			sortedFields = append(sortedFields, fieldName)
+		}
+		sort.Strings(sortedFields)
+		for _, fieldName := range sortedFields {
+			out = append(out, ResolveExplainType(o.Fields[fieldName], append(path, fieldName))...)
+		}
+	default:
+		panic(errors.Errorf("invalid type: %T", o))
+	}
+	return out
 }

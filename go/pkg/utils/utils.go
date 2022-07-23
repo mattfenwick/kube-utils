@@ -44,3 +44,9 @@ func Set(xs []string) map[string]bool {
 	}
 	return out
 }
+
+func CopySlice[A any](s []A) []A {
+	newCopy := make([]A, len(s))
+	copy(newCopy, s)
+	return newCopy
+}

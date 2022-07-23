@@ -3,75 +3,11 @@ package swagger
 import (
 	"fmt"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
-	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 	"sort"
-	"strings"
 )
-
-func AnalysisTypeTable(o interface{}) string {
-	tableString := &strings.Builder{}
-	table := tablewriter.NewWriter(tableString)
-	table.SetAutoWrapText(false)
-	table.SetRowLine(true)
-	table.SetAutoMergeCells(true)
-	table.SetColMinWidth(1, 100)
-	table.SetHeader([]string{"Type", "Field"})
-	for _, values := range AnalysisGetTypes(o, []string{}) {
-		table.Append([]string{values[1], values[0]})
-	}
-	table.Render()
-	return tableString.String()
-}
-
-func AnalysisTypeSummary(obj interface{}) []string {
-	var lines []string
-	for _, t := range AnalysisGetTypes(obj, []string{}) {
-		chunks := strings.Split(t[0], ".")
-		prefix := strings.Repeat("  ", len(chunks)-1)
-		typeString := fmt.Sprintf("%s%s", prefix, chunks[len(chunks)-1])
-		line := fmt.Sprintf("%-60s    %s", typeString, t[1])
-		lines = append(lines, line)
-	}
-	return lines
-}
-
-func AnalysisGetTypes(obj interface{}, pathContext []string) [][2]string {
-	path := make([]string, len(pathContext))
-	copy(path, pathContext)
-
-	logrus.Debugf("path: %+v", path)
-
-	var out [][2]string
-	switch o := obj.(type) {
-	case *Any:
-		out = append(out, [2]string{strings.Join(path, "."), "(any)"})
-	case *Circular:
-		out = append(out, [2]string{strings.Join(path, "."), "(circular)"})
-	case *Primitive:
-		out = append(out, [2]string{strings.Join(path, "."), o.Type})
-	case *Array:
-		out = append(out, [2]string{strings.Join(path, "."), "array"})
-		out = append(out, AnalysisGetTypes(o.ElementType, append(path, "[]"))...)
-	case *Dict:
-		out = append(out, [2]string{strings.Join(path, "."), "map[string]string"})
-	case *Object:
-		out = append(out, [2]string{strings.Join(path, "."), "object"})
-		var sortedFields []string
-		for fieldName := range o.Fields {
-			sortedFields = append(sortedFields, fieldName)
-		}
-		sort.Strings(sortedFields)
-		for _, fieldName := range sortedFields {
-			out = append(out, AnalysisGetTypes(o.Fields[fieldName], append(path, fieldName))...)
-		}
-	default:
-		panic(errors.Errorf("invalid type: %T", o))
-	}
-	return out
-}
 
 func CompareAnalysisTypes(a interface{}, b interface{}) *utils.JsonDocumentDiffs {
 	diffs := &utils.JsonDocumentDiffs{}
@@ -79,15 +15,9 @@ func CompareAnalysisTypes(a interface{}, b interface{}) *utils.JsonDocumentDiffs
 	return diffs
 }
 
-func CopySlice[A any](s []A) []A {
-	newCopy := make([]A, len(s))
-	copy(newCopy, s)
-	return newCopy
-}
-
 func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []string, diffs *utils.JsonDocumentDiffs) {
 	// make a copy to avoid aliasing
-	path := CopySlice(pathContext)
+	path := utils.CopySlice(pathContext)
 
 	logrus.Debugf("path: %+v", path)
 
@@ -139,7 +69,7 @@ func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []stri
 					minLength = len(bVal.Required)
 				}
 				for i, aSub := range aVal.Required {
-					newPath := append(CopySlice(path), "required", fmt.Sprintf("%d", i))
+					newPath := append(utils.CopySlice(path), "required", fmt.Sprintf("%d", i))
 					if i >= len(aVal.Required) {
 						diffs.Add(&utils.JDiff{Type: utils.DiffTypeAdd, New: bVal.Required[i], Path: newPath})
 					} else if i >= len(bVal.Required) {
