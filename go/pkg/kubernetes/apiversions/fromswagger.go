@@ -2,7 +2,7 @@ package apiversions
 
 import (
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/swagger"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

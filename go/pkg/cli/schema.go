@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/swagger"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
