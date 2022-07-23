@@ -29,9 +29,8 @@ func SetupRootSchemaCommand() *cobra.Command {
 	command.PersistentFlags().StringVarP(&flags.Verbosity, "verbosity", "v", "info", "log level; one of [info, debug, trace, warn, error, fatal, panic]")
 
 	command.AddCommand(SetupVersionCommand())
-	command.AddCommand(swagger.SetupExplainCommand())
-	command.AddCommand(swagger.SetupCompareCommand())
-	command.AddCommand(setupCompareSwaggerCommand())
+	command.AddCommand(swagger.SetupResourceCommand())
+	command.AddCommand(swagger.SetupGVKCommand())
 
 	return command
 }
