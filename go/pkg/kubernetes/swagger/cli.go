@@ -168,7 +168,7 @@ func RunCompare(args *CompareArgs) {
 					if len(e.Path) > 0 && e.Path[len(e.Path)-1] == "description" && args.SkipDescriptions {
 						logrus.Debugf("skipping description at %+v", e.Path)
 					} else {
-						fmt.Printf("  %-20s    %+v\n", e.Type, strings.Join(e.Path, "."))
+						fmt.Printf("  %-20s    %+v\n", e.Type.Short(), strings.Join(e.Path, "."))
 						if args.PrintValues {
 							fmt.Printf("  - old: %+v\n  - new: %+v\n", e.Old, e.New)
 						}

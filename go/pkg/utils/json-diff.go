@@ -8,7 +8,22 @@ import (
 	"sort"
 )
 
-type DiffType = string
+type DiffType string
+
+func (d DiffType) Short() string {
+	switch d {
+	case DiffTypeAdd:
+		return "+"
+	case DiffTypeRemove:
+		return "-"
+	case DiffTypeChange:
+		return "<>"
+	case DiffTypeSame:
+		return " "
+	default:
+		panic(errors.Errorf("invalid DiffType %s", d))
+	}
+}
 
 const (
 	DiffTypeAdd    DiffType = "DiffTypeAdd"

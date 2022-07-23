@@ -79,8 +79,8 @@ func CompareAnalysisTypes(a interface{}, b interface{}) *utils.JsonDocumentDiffs
 	return diffs
 }
 
-func CopySlice(s []string) []string {
-	newCopy := make([]string, len(s))
+func CopySlice[A any](s []A) []A {
+	newCopy := make([]A, len(s))
 	copy(newCopy, s)
 	return newCopy
 }
