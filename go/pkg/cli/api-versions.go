@@ -1,7 +1,8 @@
 package cli
 
 import (
-	apiversions2 "github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger/apiversions"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger"
+	apiversions "github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger/apiversions"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,7 @@ func setupKindCommand() *cobra.Command {
 }
 
 func RunKind() {
-	apiversions2.ParseKindResults()
+	apiversions.ParseKindResults()
 }
 
 //type ParseSwaggerArgs struct {}
@@ -44,5 +45,5 @@ func setupCompareSwaggerCommand() *cobra.Command {
 }
 
 func RunCompareSwagger() {
-	apiversions2.CompareJsonSpecsAcrossKubeVersions()
+	swagger.CompareJsonSpecsAcrossKubeVersions()
 }
