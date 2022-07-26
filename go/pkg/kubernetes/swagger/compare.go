@@ -33,10 +33,8 @@ func RunCompareResource(args *CompareArgs) {
 	for _, typeName := range utils.SortedKeys(typeNames) {
 		fmt.Printf("inspecting type %s\n", typeName)
 
-		//resolved1 := swaggerSpec1.ResolveToJsonBlob(typeName)
-		//resolved2 := swaggerSpec2.ResolveToJsonBlob(typeName)
-		resolved1 := swaggerSpec1.AnalyzeType(typeName)
-		resolved2 := swaggerSpec2.AnalyzeType(typeName)
+		resolved1 := ResolveResource(swaggerSpec1, typeName)
+		resolved2 := ResolveResource(swaggerSpec2, typeName)
 
 		logrus.Infof("group/versions for kube %s: %+v", args.Versions[0], utils.SortedKeys(resolved1))
 		logrus.Infof("group/versions for kube %s: %+v", args.Versions[1], utils.SortedKeys(resolved2))
@@ -46,7 +44,7 @@ func RunCompareResource(args *CompareArgs) {
 			for _, groupName2 := range utils.SortedKeys(resolved2) {
 				type2 := resolved2[groupName2]
 				fmt.Printf("comparing %s: %s@%s vs. %s@%s\n", typeName, args.Versions[0], groupName1, args.Versions[1], groupName2)
-				for _, e := range CompareAnalysisTypes(type1, type2).Elements {
+				for _, e := range CompareResolvedResources(type1, type2).Elements {
 					//for _, e := range utils.DiffJsonValues(utils.MustJsonRemarshal(type1), utils.MustJsonRemarshal(type2)).Elements {
 					if len(e.Path) > 0 && e.Path[len(e.Path)-1] == "description" && args.SkipDescriptions {
 						logrus.Debugf("skipping description at %+v", e.Path)

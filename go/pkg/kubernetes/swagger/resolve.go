@@ -2,20 +2,20 @@ package swagger
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
-	"sort"
 )
 
-func CompareAnalysisTypes(a interface{}, b interface{}) *utils.JsonDocumentDiffs {
+func CompareResolvedResources(a interface{}, b interface{}) *utils.JsonDocumentDiffs {
 	diffs := &utils.JsonDocumentDiffs{}
-	CompareAnalysisTypesHelper(a, b, []string{}, diffs)
+	CompareResolvedResourcesHelper(a, b, []string{}, diffs)
 	return diffs
 }
 
-func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []string, diffs *utils.JsonDocumentDiffs) {
+func CompareResolvedResourcesHelper(a interface{}, b interface{}, pathContext []string, diffs *utils.JsonDocumentDiffs) {
 	// make a copy to avoid aliasing
 	path := utils.CopySlice(pathContext)
 
@@ -44,21 +44,17 @@ func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []stri
 		case *Dict:
 			switch bVal := b.(type) {
 			case *Dict:
-				CompareAnalysisTypesHelper(aVal.ElementType, bVal.ElementType, append(path, "{}"), diffs)
+				CompareResolvedResourcesHelper(aVal.ElementType, bVal.ElementType, append(path, "{}"), diffs)
 			default:
 				diffs.Add(&utils.JDiff{Type: utils.DiffTypeChange, Old: aVal, New: bVal, Path: path})
 			}
 		case *Object:
 			switch bVal := b.(type) {
 			case *Object:
-				aKeys := maps.Keys(aVal.Fields)
-				sort.Strings(aKeys)
-				for _, k := range aKeys {
-					CompareAnalysisTypesHelper(aVal.Fields[k], bVal.Fields[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
+				for _, k := range slice.Sort(maps.Keys(aVal.Fields)) {
+					CompareResolvedResourcesHelper(aVal.Fields[k], bVal.Fields[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
 				}
-				bKeys := maps.Keys(bVal.Fields)
-				sort.Strings(bKeys)
-				for _, k := range bKeys {
+				for _, k := range slice.Sort(maps.Keys(bVal.Fields)) {
 					if _, ok := aVal.Fields[k]; !ok {
 						diffs.Add(&utils.JDiff{Type: utils.DiffTypeAdd, New: bVal.Fields[k], Path: append(path, fmt.Sprintf(`%s`, k))})
 					}
@@ -84,7 +80,7 @@ func CompareAnalysisTypesHelper(a interface{}, b interface{}, pathContext []stri
 		case *Array:
 			switch bVal := b.(type) {
 			case *Array:
-				CompareAnalysisTypesHelper(aVal.ElementType, bVal.ElementType, append(path, "[]"), diffs)
+				CompareResolvedResourcesHelper(aVal.ElementType, bVal.ElementType, append(path, "[]"), diffs)
 			default:
 				diffs.Add(&utils.JDiff{Type: utils.DiffTypeChange, Old: aVal, New: bVal, Path: path})
 			}
@@ -124,29 +120,25 @@ type Any struct{}
 
 type Circular struct{} // TODO at some point, add in a string to refer to type by name?
 
-func (s *Kube14OrNewerSpec) AnalyzeType(typeName string) map[string]interface{} {
+func ResolveResource(s *Kube14OrNewerSpec, typeName string) map[string]interface{} {
 	jsonBlob := s.ResolveToJsonBlob(typeName)
 	out := map[string]interface{}{}
-	var sortedGroups []string
-	for group := range jsonBlob {
-		sortedGroups = append(sortedGroups, group)
-	}
-	sort.Strings(sortedGroups)
-	for _, group := range sortedGroups {
+
+	for _, group := range slice.Sort(maps.Keys(jsonBlob)) {
 		typeDef := jsonBlob[group]
-		out[group] = analyzeTypeHelper("ingress", typeDef.(map[string]interface{}), []string{typeName, group})
+		out[group] = resolveResourceHelper(typeDef.(map[string]interface{}), []string{typeName, group})
 	}
 	return out
 }
 
-func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []string) interface{} {
+func resolveResourceHelper(o map[string]interface{}, pathContext []string) interface{} {
 	path := make([]string, len(pathContext))
 	copy(path, pathContext)
 
 	logrus.Debugf("path: %+v", path)
 
 	if o["type"] == nil && o["$ref"] == nil {
-		logrus.Debugf("(this happens in older specs and is probably okay) both 'type' and '$ref' are nil at: %+v , %s", pathContext, name)
+		logrus.Debugf("(this happens in older specs and is probably okay) both 'type' and '$ref' are nil at: %+v", pathContext)
 	}
 	if o["type"] != nil && o["$ref"] != nil {
 		panic(errors.Errorf("unable to parse type: both type and ref non-nil (%+v)", o))
@@ -174,26 +166,26 @@ func analyzeTypeHelper(name string, o map[string]interface{}, pathContext []stri
 		case "(circular)":
 			return &Circular{}
 		case "object":
-			return AnalyzeObject(o, path)
+			return ResolveObject(o, path)
 		case "array":
-			elementType := analyzeTypeHelper(name, o["items"].(map[string]interface{}), append(path, "items"))
+			elementType := resolveResourceHelper(o["items"].(map[string]interface{}), append(path, "items"))
 			return &Array{ElementType: elementType}
 		default:
 			panic(errors.Errorf("TODO -- handle %s", o["type"]))
 		}
 	} else if r != nil {
-		return analyzeTypeHelper(name, r, append(path, "$ref"))
+		return resolveResourceHelper(r, append(path, "$ref"))
 	} else {
 		// assume it's an object
-		return AnalyzeObject(o, path)
+		return ResolveObject(o, path)
 	}
 }
 
-func AnalyzeObject(o map[string]interface{}, path []string) interface{} {
+func ResolveObject(o map[string]interface{}, path []string) interface{} {
 	if v, ok := o["properties"]; ok {
 		fields := map[string]interface{}{}
 		for propName, property := range v.(map[string]interface{}) {
-			fields[propName] = analyzeTypeHelper(propName, property.(map[string]interface{}), append(path, propName))
+			fields[propName] = resolveResourceHelper(property.(map[string]interface{}), append(path, propName))
 		}
 		var required []string
 		if rs, ok := o["required"]; ok {

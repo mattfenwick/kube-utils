@@ -2,10 +2,12 @@ package swagger
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 )
@@ -17,17 +19,14 @@ func RunExplainResource(args *ExplainArgs) {
 	//   otherwise, filter down to just the ones requested
 	var typeNames []string
 	if len(args.TypeNames) == 0 {
-		for name := range swaggerSpec.DefinitionsByNameByGroup() {
-			typeNames = append(typeNames, name)
-		}
-		sort.Strings(typeNames)
+		typeNames = slice.Sort(maps.Keys(swaggerSpec.DefinitionsByNameByGroup()))
 	} else {
 		typeNames = args.TypeNames // TODO should this be sorted, or respect the input order?
 	}
 
 	for _, typeName := range typeNames {
 		logrus.Debugf("analysing type %s", typeName)
-		analyses := swaggerSpec.AnalyzeType(typeName)
+		analyses := ResolveResource(swaggerSpec, typeName)
 
 		// no group/versions specified?  use them all
 		//   otherwise, filter down to just the ones requested
