@@ -35,7 +35,7 @@ func ExplainGvks(format ExplainGVKFormat, versions []string) {
 func ExplainGvksByApiVersion(kubeVersion KubeVersion) {
 	spec := MustReadSwaggerSpec(kubeVersion)
 
-	gvksByResource := map[string][]string{}
+	gvksByApiVersion := map[string][]string{}
 	for name, def := range spec.Definitions {
 		if len(def.XKubernetesGroupVersionKind) > 0 {
 			logrus.Debugf("%s, %s, %+v\n", name, def.Type, def.XKubernetesGroupVersionKind)
@@ -46,11 +46,11 @@ func ExplainGvksByApiVersion(kubeVersion KubeVersion) {
 				apiVersion = gvk.Group + "."
 			}
 			apiVersion += gvk.Version
-			gvksByResource[apiVersion] = append(gvksByResource[apiVersion], gvk.Kind)
+			gvksByApiVersion[apiVersion] = append(gvksByApiVersion[apiVersion], gvk.Kind)
 		}
 	}
 
-	fmt.Printf("\n%s\n\n", ExplainGvksResourceTable(gvksByResource))
+	fmt.Printf("\n%s\n\n", ExplainGvksResourceTable(gvksByApiVersion, []string{"API version", "Resources"}))
 }
 
 func ExplainGvksByResource(kubeVersion KubeVersion) {
@@ -71,16 +71,16 @@ func ExplainGvksByResource(kubeVersion KubeVersion) {
 		}
 	}
 
-	fmt.Printf("\n%s\n\n", ExplainGvksResourceTable(gvksByResource))
+	fmt.Printf("\n%s\n\n", ExplainGvksResourceTable(gvksByResource, []string{"Resource", "API versions"}))
 }
 
-func ExplainGvksResourceTable(rows map[string][]string) string {
+func ExplainGvksResourceTable(rows map[string][]string, headers []string) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
-	table.SetHeader([]string{"Type", "Field"})
+	table.SetHeader(headers)
 	for _, resource := range slice.Sort(maps.Keys(rows)) {
 		apiVersions := rows[resource]
 		table.Append([]string{resource, strings.Join(slice.Sort(apiVersions), "\n")})

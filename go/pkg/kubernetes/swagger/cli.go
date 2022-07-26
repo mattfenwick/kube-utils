@@ -35,6 +35,10 @@ func SetupGVKCommand() *cobra.Command {
 type ExplainGVKArgs struct {
 	ByResource   bool
 	KubeVersions []string
+	// TODO IncludeApiVersions []string
+	// TODO ExcludeApiVersions []string
+	// TODO IncludeResources []string
+	// TODO ExcludeResources []string
 }
 
 func (e *ExplainGVKArgs) Format() ExplainGVKFormat {
