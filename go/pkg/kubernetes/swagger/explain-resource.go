@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func RunExplainResource(args *ExplainArgs) {
+func RunExplainResource(args *ExplainResourceArgs) {
 	swaggerSpec := MustReadSwaggerSpec(MustVersion(args.Version))
 
 	// no types specified?  use them all

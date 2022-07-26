@@ -9,24 +9,7 @@ import (
 	"os"
 )
 
-func CompareJsonSpecsAcrossKubeVersions() {
-	excludeResources := []string{"WatchEvent", "DeleteOptions"}
-	includeResources := []string{
-		"Service",
-		"ClusterRole",
-		"ClusterRoleBinding",
-		"ConfigMap",
-		"CronJob",
-		"CustomResourceDefinition",
-		"Deployment",
-		"Ingress",
-		"Job",
-		"Role",
-		"RoleBinding",
-		"Secret",
-		"ServiceAccount",
-		"StatefulSet",
-	}
+func CompareGVKs(excludeResources []string, includeResources []string, kubeVersions []KubeVersion) {
 
 	err := os.MkdirAll(SpecsRootDirectory, 0777)
 	utils.DoOrDie(errors.Wrapf(err, "unable to mkdir %s", SpecsRootDirectory))
@@ -36,7 +19,7 @@ func CompareJsonSpecsAcrossKubeVersions() {
 		Kinds:   map[string][]string{},
 	}
 
-	for _, version := range LatestKubePatchVersions {
+	for _, version := range kubeVersions {
 		obj := MustReadSwaggerSpec(version)
 
 		resourcesTable := &apiversions.ResourcesTable{

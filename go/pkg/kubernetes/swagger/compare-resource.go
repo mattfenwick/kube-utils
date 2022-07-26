@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func RunCompareResource(args *CompareArgs) {
+func RunCompareResource(args *CompareResourceArgs) {
 	if len(args.Versions) != 2 {
 		panic(errors.Errorf("expected 2 kube versions, found %+v", args.Versions))
 	}
