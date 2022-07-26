@@ -51,9 +51,9 @@ func RunExplainResource(args *ExplainResourceArgs) {
 			analysis := analyses[groupVersion]
 			switch args.Format {
 			case "table":
-				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, ExplainTypeTable(analysis))
+				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, ExplainResourceTable(analysis))
 			case "condensed":
-				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(ExplainTypeSummary(analysis), "\n"))
+				fmt.Printf("%s.%s:\n%s\n", groupVersion, typeName, strings.Join(ExplainResourceSummary(analysis), "\n"))
 			default:
 				panic(errors.Errorf("invalid output format: %s", args.Format))
 			}
@@ -63,7 +63,7 @@ func RunExplainResource(args *ExplainResourceArgs) {
 	}
 }
 
-func ExplainTypeTable(o interface{}) string {
+func ExplainResourceTable(o interface{}) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -71,16 +71,16 @@ func ExplainTypeTable(o interface{}) string {
 	table.SetAutoMergeCells(true)
 	table.SetColMinWidth(1, 100)
 	table.SetHeader([]string{"Type", "Field"})
-	for _, values := range ResolveExplainType(o, []string{}) {
+	for _, values := range ResolveExplainResource(o, []string{}) {
 		table.Append([]string{values[1], values[0]})
 	}
 	table.Render()
 	return tableString.String()
 }
 
-func ExplainTypeSummary(obj interface{}) []string {
+func ExplainResourceSummary(obj interface{}) []string {
 	var lines []string
-	for _, t := range ResolveExplainType(obj, []string{}) {
+	for _, t := range ResolveExplainResource(obj, []string{}) {
 		chunks := strings.Split(t[0], ".")
 		prefix := strings.Repeat("  ", len(chunks)-1)
 		typeString := fmt.Sprintf("%s%s", prefix, chunks[len(chunks)-1])
@@ -90,7 +90,7 @@ func ExplainTypeSummary(obj interface{}) []string {
 	return lines
 }
 
-func ResolveExplainType(obj interface{}, pathContext []string) [][2]string {
+func ResolveExplainResource(obj interface{}, pathContext []string) [][2]string {
 	path := make([]string, len(pathContext))
 	copy(path, pathContext)
 
@@ -106,7 +106,7 @@ func ResolveExplainType(obj interface{}, pathContext []string) [][2]string {
 		out = append(out, [2]string{strings.Join(path, "."), o.Type})
 	case *Array:
 		out = append(out, [2]string{strings.Join(path, "."), "array"})
-		out = append(out, ResolveExplainType(o.ElementType, append(path, "[]"))...)
+		out = append(out, ResolveExplainResource(o.ElementType, append(path, "[]"))...)
 	case *Dict:
 		out = append(out, [2]string{strings.Join(path, "."), "map[string]string"})
 	case *Object:
@@ -117,7 +117,7 @@ func ResolveExplainType(obj interface{}, pathContext []string) [][2]string {
 		}
 		sort.Strings(sortedFields)
 		for _, fieldName := range sortedFields {
-			out = append(out, ResolveExplainType(o.Fields[fieldName], append(path, fieldName))...)
+			out = append(out, ResolveExplainResource(o.Fields[fieldName], append(path, fieldName))...)
 		}
 	default:
 		panic(errors.Errorf("invalid type: %T", o))

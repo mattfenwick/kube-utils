@@ -32,23 +32,38 @@ func SetupGVKCommand() *cobra.Command {
 	return command
 }
 
+type ExplainGVKArgs struct {
+	ByResource   bool
+	KubeVersions []string
+}
+
+func (e *ExplainGVKArgs) Format() ExplainGVKFormat {
+	if e.ByResource {
+		return ExplainGVKFormatByResource
+	}
+	return ExplainGVKFormatByApiVersion
+}
+
 func setupExplainGvkCommand() *cobra.Command {
-	//args := &ParseSwaggerArgs{}
+	args := &ExplainGVKArgs{}
 
 	command := &cobra.Command{
 		Use:   "explain",
 		Short: "explain gvks from a swagger spec",
 		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, as []string) {
-			RunExplainGvks()
+			RunExplainGvks(args)
 		},
 	}
+
+	command.Flags().BoolVar(&args.ByResource, "by-resource", true, "if true, formats output by resource; otherwise by apiversion")
+	command.Flags().StringSliceVar(&args.KubeVersions, "kube-version", defaultKubeVersions, "kube versions to explain")
 
 	return command
 }
 
-func RunExplainGvks() {
-	panic("TODO")
+func RunExplainGvks(args *ExplainGVKArgs) {
+	ExplainGvks(args.Format(), args.KubeVersions)
 }
 
 var (
