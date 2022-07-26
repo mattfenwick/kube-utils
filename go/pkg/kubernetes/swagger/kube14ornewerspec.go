@@ -73,18 +73,28 @@ func (p *Property) ResolveToJsonBlob(resolve func(string) (string, *Definition),
 	return out
 }
 
+type GVK struct {
+	Group   string `json:"group"`
+	Kind    string `json:"kind"`
+	Version string `json:"version"`
+}
+
+func (g *GVK) ApiVersion() string {
+	apiVersion := ""
+	if g.Group != "" {
+		apiVersion = g.Group + "."
+	}
+	return apiVersion + g.Version
+}
+
 type Definition struct {
-	Description                 string               `json:"description,omitempty"`
-	Format                      string               `json:"format,omitempty"`
-	Properties                  map[string]*Property `json:"properties,omitempty"`
-	Required                    []string             `json:"required,omitempty"`
-	Type                        string               `json:"type,omitempty"`
-	XKubernetesGroupVersionKind []struct {
-		Group   string `json:"group"`
-		Kind    string `json:"kind"`
-		Version string `json:"version"`
-	} `json:"x-kubernetes-group-version-kind,omitempty"`
-	XKubernetesUnions []map[string]interface{} `json:"x-kubernetes-unions,omitempty"`
+	Description                 string                   `json:"description,omitempty"`
+	Format                      string                   `json:"format,omitempty"`
+	Properties                  map[string]*Property     `json:"properties,omitempty"`
+	Required                    []string                 `json:"required,omitempty"`
+	Type                        string                   `json:"type,omitempty"`
+	XKubernetesGroupVersionKind []*GVK                   `json:"x-kubernetes-group-version-kind,omitempty"`
+	XKubernetesUnions           []map[string]interface{} `json:"x-kubernetes-unions,omitempty"`
 }
 
 func (d *Definition) ResolveToJsonBlob(resolve func(string) (string, *Definition), path []string, inProgress map[string]bool) map[string]interface{} {
@@ -152,11 +162,7 @@ func (s *Kube14OrNewerSpec) DefinitionsByNameByGroup() map[string]map[string]*De
 			if _, ok := s.definitionsByNameCache[gvk.Kind]; !ok {
 				s.definitionsByNameCache[gvk.Kind] = map[string]*Definition{}
 			}
-			gv := gvk.Version
-			if gvk.Group != "" {
-				gv = gvk.Group + "." + gv
-			}
-			s.definitionsByNameCache[gvk.Kind][gv] = def
+			s.definitionsByNameCache[gvk.Kind][gvk.ApiVersion()] = def
 		}
 	}
 	return s.definitionsByNameCache

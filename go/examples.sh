@@ -32,8 +32,13 @@ go run cmd/schema/main.go resource explain \
   --type CronJob > cronjob-1-24.txt
 
 # gvk: explain
-go run cmd/schema/main.go gvk explain
+KUBE_VERSIONS=1.18.20,1.20.15,1.22.12,1.24.0
+KUBE_RESOURCES=Ingress,CronJob,CustomResourceDefinition
+go run cmd/schema/main.go gvk explain \
+  --resource="$KUBE_RESOURCES" \
+  --kube-version="$KUBE_VERSIONS"
 
-go run cmd/schema/main.go gvk explain --by-resource=false
-
-#git diff --no-index old-explain-crd.txt explain-crd.txt
+go run cmd/schema/main.go gvk explain \
+  --resource="$KUBE_RESOURCES" \
+  --kube-version="$KUBE_VERSIONS" \
+  --group-by=api-version

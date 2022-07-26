@@ -31,12 +31,7 @@ func CompareGVKs(excludeResources []string, includeResources []string, kubeVersi
 				logrus.Debugf("%s, %s, %+v\n", a, b.Type, b.XKubernetesGroupVersionKind)
 			}
 			for _, gvk := range b.XKubernetesGroupVersionKind {
-				apiVersion := ""
-				if gvk.Group != "" {
-					apiVersion = gvk.Group + "."
-				}
-				apiVersion += gvk.Version
-				resourcesTable.Kinds[gvk.Kind] = append(resourcesTable.Kinds[gvk.Kind], apiVersion)
+				resourcesTable.Kinds[gvk.Kind] = append(resourcesTable.Kinds[gvk.Kind], gvk.ApiVersion())
 			}
 		}
 		//fmt.Printf("simple table:\n%s\n", resourcesTable.SimpleTable())
