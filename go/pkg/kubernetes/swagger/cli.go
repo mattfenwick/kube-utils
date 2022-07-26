@@ -1,7 +1,9 @@
 package swagger
 
 import (
+	"github.com/mattfenwick/collections/pkg/set"
 	"github.com/mattfenwick/collections/pkg/slice"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -32,44 +34,6 @@ func SetupGVKCommand() *cobra.Command {
 	return command
 }
 
-type ExplainGVKArgs struct {
-	ByResource   bool
-	KubeVersions []string
-	// TODO IncludeApiVersions []string
-	// TODO ExcludeApiVersions []string
-	// TODO IncludeResources []string
-	// TODO ExcludeResources []string
-}
-
-func (e *ExplainGVKArgs) Format() ExplainGVKFormat {
-	if e.ByResource {
-		return ExplainGVKFormatByResource
-	}
-	return ExplainGVKFormatByApiVersion
-}
-
-func setupExplainGvkCommand() *cobra.Command {
-	args := &ExplainGVKArgs{}
-
-	command := &cobra.Command{
-		Use:   "explain",
-		Short: "explain gvks from a swagger spec",
-		Args:  cobra.ExactArgs(0),
-		Run: func(cmd *cobra.Command, as []string) {
-			RunExplainGvks(args)
-		},
-	}
-
-	command.Flags().BoolVar(&args.ByResource, "by-resource", true, "if true, formats output by resource; otherwise by apiversion")
-	command.Flags().StringSliceVar(&args.KubeVersions, "kube-version", defaultKubeVersions, "kube versions to explain")
-
-	return command
-}
-
-func RunExplainGvks(args *ExplainGVKArgs) {
-	ExplainGvks(args.Format(), args.KubeVersions)
-}
-
 var (
 	defaultExcludeResources = []string{"WatchEvent", "DeleteOptions"}
 	defaultIncludeResources = []string{
@@ -88,6 +52,14 @@ var (
 		"ServiceAccount",
 		"StatefulSet",
 	}
+
+	defaultExcludeApiVersions = []string{}
+	defaultIncludeApiVersions = []string{
+		"v1",
+		"apps.v1",
+		"batch.v1",
+	}
+
 	defaultKubeVersions = []string{
 		"1.18.20",
 		"1.19.16",
@@ -99,6 +71,78 @@ var (
 		"1.25.0-alpha.3",
 	}
 )
+
+type ExplainGVKArgs struct {
+	GroupBy            string
+	KubeVersions       []string
+	IncludeApiVersions []string
+	ExcludeApiVersions []string
+	IncludeResources   []string
+	ExcludeResources   []string
+	IncludeAll         bool
+}
+
+func (e *ExplainGVKArgs) GetGroupBy() ExplainGVKGroupBy {
+	switch e.GroupBy {
+	case "resource":
+		return ExplainGVKGroupByResource
+	case "apiversion", "api-version":
+		return ExplainGVKGroupByApiVersion
+	default:
+		panic(errors.Errorf("invalid group by value: %s", e.GroupBy))
+	}
+}
+
+func setupExplainGvkCommand() *cobra.Command {
+	args := &ExplainGVKArgs{}
+
+	command := &cobra.Command{
+		Use:   "explain",
+		Short: "explain gvks from a swagger spec",
+		Args:  cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, as []string) {
+			RunExplainGvks(args)
+		},
+	}
+
+	command.Flags().BoolVar(&args.IncludeAll, "include-all", false, "if true, includes all apiversions and resources regardless of includes/excludes.  This is useful for debugging")
+
+	command.Flags().StringVar(&args.GroupBy, "group-by", "resource", "what to group by: valid values are 'resource' and 'api-version'")
+	command.Flags().StringSliceVar(&args.KubeVersions, "kube-version", defaultKubeVersions, "kube versions to explain")
+
+	command.Flags().StringSliceVar(&args.ExcludeResources, "resource-exclude", []string{}, "resources to exclude")
+	command.Flags().StringSliceVar(&args.IncludeResources, "resource", []string{}, "resources to include")
+
+	command.Flags().StringSliceVar(&args.ExcludeApiVersions, "apiversion-exclude", []string{}, "api versions to exclude")
+	command.Flags().StringSliceVar(&args.IncludeApiVersions, "apiversion", []string{}, "api versions to include")
+
+	return command
+}
+
+func shouldAllow(s string, allows *set.Set[string], forbids *set.Set[string]) bool {
+	return (allows.Len() == 0 || allows.Contains(s)) && !forbids.Contains(s)
+}
+
+func RunExplainGvks(args *ExplainGVKArgs) {
+	var include func(apiVersion string, resource string) bool
+	if args.IncludeAll {
+		include = func(apiVersion string, resource string) bool {
+			return true
+		}
+	} else {
+		includeResources := set.NewSet(args.IncludeResources)
+		excludeResources := set.NewSet(args.ExcludeResources)
+		includeApiVersions := set.NewSet(args.IncludeApiVersions)
+		excludeApiVersions := set.NewSet(args.ExcludeApiVersions)
+
+		include = func(apiVersion string, resource string) bool {
+			includeApiVersion := shouldAllow(apiVersion, includeApiVersions, excludeApiVersions)
+			includeResource := shouldAllow(resource, includeResources, excludeResources)
+			return includeApiVersion && includeResource
+		}
+	}
+	ExplainGvks(args.GetGroupBy(), args.KubeVersions, include)
+}
 
 type CompareGVKArgs struct {
 	ExcludeResources []string

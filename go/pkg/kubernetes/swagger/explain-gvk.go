@@ -10,81 +10,93 @@ import (
 	"strings"
 )
 
-type ExplainGVKFormat string
-
-const (
-	ExplainGVKFormatByResource   = "ExplainGVKFormatByResource"
-	ExplainGVKFormatByApiVersion = "ExplainGVKFormatByApiVersion"
-)
-
-func ExplainGvks(format ExplainGVKFormat, versions []string) {
-	for _, version := range versions {
-		kubeVersion := MustVersion(version)
-		fmt.Printf("kube version: %s\n", version)
-		switch format {
-		case ExplainGVKFormatByResource:
-			ExplainGvksByResource(kubeVersion)
-		case ExplainGVKFormatByApiVersion:
-			ExplainGvksByApiVersion(kubeVersion)
-		default:
-			panic(errors.Errorf("invalid format: %s", format))
-		}
-	}
+// ExplainGVKTable models a pivot table
+type ExplainGVKTable struct {
+	FirstColumnHeader string
+	Rows              map[string]map[string][]string
+	Columns           []string
 }
 
-func ExplainGvksByApiVersion(kubeVersion KubeVersion) {
-	spec := MustReadSwaggerSpec(kubeVersion)
-
-	gvksByApiVersion := map[string][]string{}
-	for name, def := range spec.Definitions {
-		if len(def.XKubernetesGroupVersionKind) > 0 {
-			logrus.Debugf("%s, %s, %+v\n", name, def.Type, def.XKubernetesGroupVersionKind)
-		}
-		for _, gvk := range def.XKubernetesGroupVersionKind {
-			apiVersion := ""
-			if gvk.Group != "" {
-				apiVersion = gvk.Group + "."
-			}
-			apiVersion += gvk.Version
-			gvksByApiVersion[apiVersion] = append(gvksByApiVersion[apiVersion], gvk.Kind)
-		}
+func (e *ExplainGVKTable) Add(rowKey string, columnKey string, value string) {
+	if _, ok := e.Rows[rowKey]; !ok {
+		e.Rows[rowKey] = map[string][]string{}
 	}
-
-	fmt.Printf("\n%s\n\n", ExplainGvksResourceTable(gvksByApiVersion, []string{"API version", "Resources"}))
+	e.Rows[rowKey][columnKey] = append(e.Rows[rowKey][columnKey], value)
 }
 
-func ExplainGvksByResource(kubeVersion KubeVersion) {
-	spec := MustReadSwaggerSpec(kubeVersion)
-
-	gvksByResource := map[string][]string{}
-	for name, def := range spec.Definitions {
-		if len(def.XKubernetesGroupVersionKind) > 0 {
-			logrus.Debugf("%s, %s, %+v\n", name, def.Type, def.XKubernetesGroupVersionKind)
-		}
-		for _, gvk := range def.XKubernetesGroupVersionKind {
-			apiVersion := ""
-			if gvk.Group != "" {
-				apiVersion = gvk.Group + "."
-			}
-			apiVersion += gvk.Version
-			gvksByResource[gvk.Kind] = append(gvksByResource[gvk.Kind], apiVersion)
-		}
-	}
-
-	fmt.Printf("\n%s\n\n", ExplainGvksResourceTable(gvksByResource, []string{"Resource", "API versions"}))
-}
-
-func ExplainGvksResourceTable(rows map[string][]string, headers []string) string {
+func (e *ExplainGVKTable) FormattedTable() string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
-	table.SetHeader(headers)
-	for _, resource := range slice.Sort(maps.Keys(rows)) {
-		apiVersions := rows[resource]
-		table.Append([]string{resource, strings.Join(slice.Sort(apiVersions), "\n")})
+	table.SetHeader(append([]string{e.FirstColumnHeader}, e.Columns...))
+	for _, rowKey := range slice.Sort(maps.Keys(e.Rows)) {
+		row := []string{rowKey}
+		for _, columnKey := range e.Columns {
+			row = append(row, strings.Join(slice.Sort(e.Rows[rowKey][columnKey]), "\n"))
+		}
+		table.Append(row)
 	}
 	table.Render()
 	return tableString.String()
+}
+
+type ExplainGVKGroupBy string
+
+const (
+	ExplainGVKGroupByResource   = "ExplainGVKGroupByResource"
+	ExplainGVKGroupByApiVersion = "ExplainGVKGroupByApiVersion"
+)
+
+func (e ExplainGVKGroupBy) Header() string {
+	switch e {
+	case ExplainGVKGroupByResource:
+		return "Resource"
+	case ExplainGVKGroupByApiVersion:
+		return "API version"
+	default:
+		panic(errors.Errorf("invalid groupBy: %s", e))
+	}
+}
+
+func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(string, string) bool) {
+	table := &ExplainGVKTable{
+		FirstColumnHeader: groupBy.Header(),
+		Rows:              map[string]map[string][]string{},
+		Columns:           versions,
+	}
+	for _, version := range versions {
+		kubeVersion := MustVersion(version)
+		logrus.Debugf("kube version: %s", version)
+
+		spec := MustReadSwaggerSpec(kubeVersion)
+		for name, def := range spec.Definitions {
+			if len(def.XKubernetesGroupVersionKind) > 0 {
+				logrus.Debugf("%s, %s, %+v\n", name, def.Type, def.XKubernetesGroupVersionKind)
+			}
+			for _, gvk := range def.XKubernetesGroupVersionKind {
+				apiVersion := ""
+				if gvk.Group != "" {
+					apiVersion = gvk.Group + "."
+				}
+				apiVersion += gvk.Version
+				if include(apiVersion, gvk.Kind) {
+					logrus.Debugf("adding gvk: %s, %s", apiVersion, gvk.Kind)
+					switch groupBy {
+					case ExplainGVKGroupByResource:
+						table.Add(gvk.Kind, kubeVersion.ToString(), apiVersion)
+					case ExplainGVKGroupByApiVersion:
+						table.Add(apiVersion, kubeVersion.ToString(), gvk.Kind)
+					default:
+						panic(errors.Errorf("invalid groupBy: %s", groupBy))
+					}
+				} else {
+					logrus.Debugf("skipping gvk: %s, %s", apiVersion, gvk.Kind)
+				}
+			}
+		}
+	}
+
+	fmt.Printf("\n%s\n\n", table.FormattedTable())
 }
