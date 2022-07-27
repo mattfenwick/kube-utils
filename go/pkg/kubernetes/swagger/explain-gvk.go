@@ -3,6 +3,7 @@ package swagger
 import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/slice"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger/apiversions"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -24,19 +25,52 @@ func (e *ExplainGVKTable) Add(rowKey string, columnKey string, value string) {
 	e.Rows[rowKey][columnKey] = append(e.Rows[rowKey][columnKey], value)
 }
 
-func (e *ExplainGVKTable) FormattedTable() string {
+func formatCell(items []string) string {
+	return strings.Join(slice.Sort(items), "\n")
+}
+
+func (e *ExplainGVKTable) FormattedTable(calculateDiff bool) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
 	table.SetHeader(append([]string{e.FirstColumnHeader}, e.Columns...))
-	for _, rowKey := range slice.Sort(maps.Keys(e.Rows)) {
-		row := []string{rowKey}
-		for _, columnKey := range e.Columns {
-			row = append(row, strings.Join(slice.Sort(e.Rows[rowKey][columnKey]), "\n"))
+	if calculateDiff {
+		if len(e.Columns) == 0 {
+			panic(errors.Errorf("unable to calculate diff for 0 versions"))
 		}
-		table.Append(row)
+		for _, rowKey := range slice.Sort(maps.Keys(e.Rows)) {
+			prev := e.Rows[rowKey][e.Columns[0]]
+			row := []string{rowKey, formatCell(prev)}
+
+			for _, columnKey := range e.Columns[1:] {
+				curr := e.Rows[rowKey][columnKey]
+
+				diff := apiversions.SliceDiff(prev, curr)
+				diff.Sort()
+
+				var add, remove string
+				if len(diff.Added) > 0 {
+					add = fmt.Sprintf("add:\n  %s\n\n", strings.Join(slice.Sort(diff.Added), "\n  "))
+				}
+				if len(diff.Removed) > 0 {
+					add = fmt.Sprintf("remove:\n  %s\n\n", strings.Join(slice.Sort(diff.Removed), "\n  "))
+				}
+				row = append(row, fmt.Sprintf("%s%s", add, remove))
+
+				prev = curr
+			}
+			table.Append(row)
+		}
+	} else {
+		for _, rowKey := range slice.Sort(maps.Keys(e.Rows)) {
+			row := []string{rowKey}
+			for _, columnKey := range e.Columns {
+				row = append(row, formatCell(e.Rows[rowKey][columnKey]))
+			}
+			table.Append(row)
+		}
 	}
 	table.Render()
 	return tableString.String()
@@ -60,7 +94,7 @@ func (e ExplainGVKGroupBy) Header() string {
 	}
 }
 
-func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(string, string) bool) {
+func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(string, string) bool, calculateDiff bool) {
 	table := &ExplainGVKTable{
 		FirstColumnHeader: groupBy.Header(),
 		Rows:              map[string]map[string][]string{},
@@ -94,5 +128,5 @@ func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(stri
 		}
 	}
 
-	fmt.Printf("\n%s\n\n", table.FormattedTable())
+	fmt.Printf("\n%s\n\n", table.FormattedTable(calculateDiff))
 }

@@ -80,6 +80,8 @@ type ExplainGVKArgs struct {
 	IncludeResources   []string
 	ExcludeResources   []string
 	IncludeAll         bool
+	Diff               bool
+	// TODO add flag to verify parsing?  by serializing/deserializing to check if it matches input?
 }
 
 func (e *ExplainGVKArgs) GetGroupBy() ExplainGVKGroupBy {
@@ -104,6 +106,8 @@ func setupExplainGvkCommand() *cobra.Command {
 			RunExplainGvks(args)
 		},
 	}
+
+	command.Flags().BoolVar(&args.Diff, "diff", false, "if true, calculate a diff from kube version to kube version.  if true, simply print resources")
 
 	command.Flags().BoolVar(&args.IncludeAll, "include-all", false, "if true, includes all apiversions and resources regardless of includes/excludes.  This is useful for debugging")
 
@@ -141,7 +145,7 @@ func RunExplainGvks(args *ExplainGVKArgs) {
 			return includeApiVersion && includeResource
 		}
 	}
-	ExplainGvks(args.GetGroupBy(), args.KubeVersions, include)
+	ExplainGvks(args.GetGroupBy(), args.KubeVersions, include, args.Diff)
 }
 
 type CompareGVKArgs struct {
