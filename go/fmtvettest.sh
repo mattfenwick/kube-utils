@@ -3,5 +3,8 @@
 set -xv
 set -euo pipefail
 
-go fmt ./...
-go vet ./...
+make fmt
+
+make vet
+
+make test

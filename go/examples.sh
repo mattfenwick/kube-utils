@@ -15,9 +15,6 @@ go run cmd/schema/main.go resource compare \
   --version 1.18.0,1.24.2 \
   --type NetworkPolicy,Ingress
 
-# gvk: compare
-go run cmd/schema/main.go gvk compare
-
 # resource: explain
 go run cmd/schema/main.go resource explain \
   --version 1.18.19 \

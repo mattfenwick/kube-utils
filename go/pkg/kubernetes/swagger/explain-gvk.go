@@ -94,7 +94,7 @@ func (e ExplainGVKGroupBy) Header() string {
 	}
 }
 
-func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(string, string) bool, calculateDiff bool) {
+func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(string, string) bool, calculateDiff bool) string {
 	table := &ExplainGVKTable{
 		FirstColumnHeader: groupBy.Header(),
 		Rows:              map[string]map[string][]string{},
@@ -128,5 +128,5 @@ func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(stri
 		}
 	}
 
-	fmt.Printf("\n%s\n\n", table.FormattedTable(calculateDiff))
+	return table.FormattedTable(calculateDiff)
 }

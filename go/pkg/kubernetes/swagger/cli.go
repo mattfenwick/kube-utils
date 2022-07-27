@@ -1,10 +1,9 @@
 package swagger
 
 import (
+	"fmt"
 	"github.com/mattfenwick/collections/pkg/set"
-	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -29,36 +28,35 @@ func SetupGVKCommand() *cobra.Command {
 	}
 
 	command.AddCommand(setupExplainGvkCommand())
-	command.AddCommand(setupCompareGvkCommand())
 
 	return command
 }
 
 var (
-	defaultExcludeResources = []string{"WatchEvent", "DeleteOptions"}
-	defaultIncludeResources = []string{
-		"Service",
-		"ClusterRole",
-		"ClusterRoleBinding",
-		"ConfigMap",
-		"CronJob",
-		"CustomResourceDefinition",
-		"Deployment",
-		"Ingress",
-		"Job",
-		"Role",
-		"RoleBinding",
-		"Secret",
-		"ServiceAccount",
-		"StatefulSet",
-	}
-
-	defaultExcludeApiVersions = []string{}
-	defaultIncludeApiVersions = []string{
-		"v1",
-		"apps.v1",
-		"batch.v1",
-	}
+	//defaultExcludeResources = []string{"WatchEvent", "DeleteOptions"}
+	//defaultIncludeResources = []string{
+	//	"Service",
+	//	"ClusterRole",
+	//	"ClusterRoleBinding",
+	//	"ConfigMap",
+	//	"CronJob",
+	//	"CustomResourceDefinition",
+	//	"Deployment",
+	//	"Ingress",
+	//	"Job",
+	//	"Role",
+	//	"RoleBinding",
+	//	"Secret",
+	//	"ServiceAccount",
+	//	"StatefulSet",
+	//}
+	//
+	//defaultExcludeApiVersions = []string{}
+	//defaultIncludeApiVersions = []string{
+	//	"v1",
+	//	"apps.v1",
+	//	"batch.v1",
+	//}
 
 	defaultKubeVersions = []string{
 		"1.18.20",
@@ -145,41 +143,8 @@ func RunExplainGvks(args *ExplainGVKArgs) {
 			return includeApiVersion && includeResource
 		}
 	}
-	ExplainGvks(args.GetGroupBy(), args.KubeVersions, include, args.Diff)
-}
 
-type CompareGVKArgs struct {
-	ExcludeResources []string
-	IncludeResources []string
-	KubeVersions     []string
-}
-
-func (c *CompareGVKArgs) GetKubeVersions() []KubeVersion {
-	return slice.Map(MustVersion, c.KubeVersions)
-}
-
-func setupCompareGvkCommand() *cobra.Command {
-	args := &CompareGVKArgs{}
-
-	command := &cobra.Command{
-		Use:   "compare",
-		Short: "compare gvks across kube versions",
-		Args:  cobra.ExactArgs(0),
-		Run: func(cmd *cobra.Command, as []string) {
-			RunCompareGvks(args)
-		},
-	}
-
-	command.Flags().StringSliceVar(&args.ExcludeResources, "exclude", defaultExcludeResources, "resources to exclude")
-	command.Flags().StringSliceVar(&args.IncludeResources, "include", defaultIncludeResources, "resources to include")
-	command.Flags().StringSliceVar(&args.KubeVersions, "kube-version", defaultKubeVersions, "kube versions to compare across")
-
-	return command
-}
-
-func RunCompareGvks(args *CompareGVKArgs) {
-	logrus.Debugf("running 'compare gvk' with: exclude %+v, include %+v, kube versions %+v", args.ExcludeResources, args.IncludeResources, args.KubeVersions)
-	CompareGVKs(args.ExcludeResources, args.IncludeResources, args.GetKubeVersions())
+	fmt.Printf("\n%s\n\n", ExplainGvks(args.GetGroupBy(), args.KubeVersions, include, args.Diff))
 }
 
 type ExplainResourceArgs struct {
