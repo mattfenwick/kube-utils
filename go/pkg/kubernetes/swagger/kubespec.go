@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/base"
 	"github.com/mattfenwick/collections/pkg/function"
+	"github.com/mattfenwick/collections/pkg/set"
 	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
+	"strings"
 )
 
 type SpecType struct {
@@ -81,7 +83,7 @@ func (s *KubeSpec) VisitSpecType(resolvedTypes map[string]*ResolvedType, path Pa
 	} else {
 		switch specType.Type {
 		case "":
-			logrus.Debugf("skipping empty type: %+v", path)
+			logrus.Debugf("skipping empty type: %+v", strings.Join(path.ToStringPieces(), "."))
 			resolved = &ResolvedType{Empty: true}
 		case "array":
 			resolved = &ResolvedType{Array: s.VisitSpecType(resolvedTypes, path.Append(SpecPath{Array: true}), specType.Items, visit)}
@@ -104,14 +106,22 @@ func (s *KubeSpec) VisitSpecType(resolvedTypes map[string]*ResolvedType, path Pa
 	return resolved
 }
 
-func (s *KubeSpec) Visit(visit func(path Path, resolved *ResolvedType, circular string)) map[string]*ResolvedType {
+func (s *KubeSpec) Visit(visit func(path Path, resolved *ResolvedType, circular string)) (map[string]*ResolvedType, map[string]map[string]*ResolvedType) {
 	resolvedTypes := map[string]*ResolvedType{}
 	for defName, def := range s.Definitions {
 		resolvedTypes[defName] = nil
 		resolved := s.VisitSpecType(resolvedTypes, []SpecPath{{FieldAccess: defName}}, def, visit)
 		resolvedTypes[defName] = resolved
 	}
-	return resolvedTypes
+	gvks := map[string]map[string]*ResolvedType{}
+	for gvkString, resolved := range resolvedTypes {
+		gvk := ParseGVK(gvkString)
+		if _, ok := gvks[gvk.Kind]; !ok {
+			gvks[gvk.Kind] = map[string]*ResolvedType{}
+		}
+		gvks[gvk.Kind][gvk.GroupVersion()] = resolved
+	}
+	return resolvedTypes, gvks
 }
 
 type SpecPath struct {
@@ -145,24 +155,53 @@ func (p Path) ToStringPieces() []string {
 	return elems
 }
 
-func (s *KubeSpec) ResolveStructure(maxDepth int) {
-	resolved := s.Visit(func(path Path, resolved *ResolvedType, circular string) {
+func (s *KubeSpec) ResolveStructure(args *ExplainResourceArgs) {
+	_, gvks := s.Visit(func(path Path, resolved *ResolvedType, circular string) {
 		if circular == "" {
 			fmt.Printf("%+v -- %+v\n", path.ToStringPieces(), resolved)
 		} else {
 			fmt.Printf("%+v\n  CIRCULAR %s\n", path.ToStringPieces(), circular)
 		}
 	})
+	resources := set.NewSet(args.TypeNames)
 	fmt.Printf("\n\n\n\n")
-	for _, name := range slice.Sort(maps.Keys(resolved)) {
-		fmt.Printf("%s:\n", name)
-		for _, path := range resolved[name].Paths(nil) {
-			if maxDepth == 0 || len(path.Fst) <= maxDepth {
-				fmt.Printf("  %+v: %s\n", path.Fst, path.Snd)
-			}
+	for _, name := range slice.Sort(maps.Keys(gvks)) {
+		if len(args.TypeNames) > 0 && !resources.Contains(name) {
+			continue
 		}
-		//json.Print(resolved[name])
-		fmt.Printf("\n\n")
+		switch args.Format {
+		case "debug":
+			fmt.Printf("%s:\n", name)
+			for gv, kind := range gvks[name] {
+				fmt.Printf("gv: %s:\n", gv)
+				for _, path := range kind.Paths([]string{name}) {
+					if args.Depth == 0 || len(path.Fst) <= args.Depth {
+						fmt.Printf("  %+v: %s\n", path.Fst, path.Snd)
+					}
+				}
+			}
+			//json.Print(resolved[name])
+			fmt.Printf("\n\n")
+		case "table":
+			panic("TODO")
+		case "condensed":
+			fmt.Printf("%s:\n", name)
+			for gv, kind := range gvks[name] {
+				fmt.Printf("%s:\n", gv)
+				for _, path := range kind.Paths([]string{name}) {
+					if args.Depth == 0 || len(path.Fst) <= args.Depth {
+						prefix := strings.Repeat("  ", len(path.Fst)-1)
+						typeString := fmt.Sprintf("%s%s", prefix, path.Fst[len(path.Fst)-1])
+						//fmt.Printf("%s\n", strings.Join(path.Fst, "."))
+						fmt.Printf("%-60s    %s\n", typeString, path.Snd)
+					}
+				}
+				//json.Print(resolved[name])
+				fmt.Printf("\n\n")
+			}
+		default:
+			panic(errors.Errorf("invalid output format: %s", args.Format))
+		}
 	}
 }
 
@@ -175,6 +214,13 @@ func (s *KubeSpec) ResolveStructure(maxDepth int) {
 //			fmt.Printf("%+v\n  CIRCULAR %s\n", path.ToStringPieces(), circular)
 //		}
 //	})
+//}
+
+// TODO distinguish between gvk and parsed name
+//type ResolvedGVK struct {
+//	GVK *GVK
+//	Name string
+//	Type *ResolvedType
 //}
 
 type ResolvedObject struct {
@@ -196,10 +242,15 @@ func (r *ResolvedType) Paths(context []string) []*base.Pair[[]string, string] {
 	} else if r.Primitive != "" {
 		return []*base.Pair[[]string, string]{base.NewPair(utils.CopySlice(context), r.Primitive)}
 	} else if r.Array != nil {
-		return r.Array.Paths(slice.Append(context, []string{"[]"}))
+		return append(
+			[]*base.Pair[[]string, string]{base.NewPair(utils.CopySlice(context), "[]")},
+			r.Array.Paths(slice.Append(context, []string{"[]"}))...)
 	} else if r.Object != nil {
-		var out []*base.Pair[[]string, string]
-		for name, prop := range r.Object.Properties {
+		out := []*base.Pair[[]string, string]{
+			base.NewPair(utils.CopySlice(context), "object"),
+		}
+		for _, name := range slice.Sort(maps.Keys(r.Object.Properties)) {
+			prop := r.Object.Properties[name]
 			out = append(out, prop.Paths(slice.Append(context, []string{name}))...)
 		}
 		if r.Object.AdditionalProperties != nil {
