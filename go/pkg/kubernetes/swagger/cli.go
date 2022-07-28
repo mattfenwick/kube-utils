@@ -153,6 +153,7 @@ type ExplainResourceArgs struct {
 	TypeNames     []string
 	Version       string
 	Depth         int
+	Hack          bool
 }
 
 func setupExplainResourceCommand() *cobra.Command {
@@ -172,6 +173,7 @@ func setupExplainResourceCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&args.TypeNames, "type", []string{}, "kubernetes types to explain")
 	command.Flags().StringVar(&args.Version, "version", "1.23.0", "kubernetes spec version")
 	command.Flags().IntVar(&args.Depth, "depth", 0, "number of layers to print; 0 is treated as unlimited")
+	command.Flags().BoolVar(&args.Hack, "hack", false, "if true, use a hacking version")
 
 	return command
 }

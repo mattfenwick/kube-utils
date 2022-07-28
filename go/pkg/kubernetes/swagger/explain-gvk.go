@@ -110,7 +110,7 @@ func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(stri
 				logrus.Debugf("%s, %s, %+v\n", name, def.Type, def.XKubernetesGroupVersionKind)
 			}
 			for _, gvk := range def.XKubernetesGroupVersionKind {
-				apiVersion := gvk.ApiVersion()
+				apiVersion := gvk.GroupVersion()
 				if include(apiVersion, gvk.Kind) {
 					logrus.Debugf("adding gvk: %s, %s", apiVersion, gvk.Kind)
 					switch groupBy {

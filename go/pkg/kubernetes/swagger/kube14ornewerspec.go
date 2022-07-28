@@ -75,16 +75,19 @@ func (p *Property) ResolveToJsonBlob(resolve func(string) (string, *Definition),
 
 type GVK struct {
 	Group   string `json:"group"`
-	Kind    string `json:"kind"`
 	Version string `json:"version"`
+	Kind    string `json:"kind"`
 }
 
-func (g *GVK) ApiVersion() string {
-	apiVersion := ""
-	if g.Group != "" {
-		apiVersion = g.Group + "."
+func (g *GVK) GroupVersion() string {
+	if g.Group == "" {
+		return g.Version
 	}
-	return apiVersion + g.Version
+	return fmt.Sprintf("%s.%s", g.Group, g.Version)
+}
+
+func (g *GVK) ToString() string {
+	return fmt.Sprintf("%s.%s", g.GroupVersion(), g.Kind)
 }
 
 type Definition struct {
@@ -99,7 +102,7 @@ type Definition struct {
 
 func (d *Definition) ResolveToJsonBlob(resolve func(string) (string, *Definition), path []string, inProgress map[string]bool) map[string]interface{} {
 	if len(path) > 100 {
-		panic("TODO")
+		panic(errors.Errorf("TODO -- maximum depth exceeded, this probably indicates a bug: path %+v", path))
 	}
 	logrus.Debugf("resolve definition path: %+v", path)
 	out := map[string]interface{}{}
@@ -162,7 +165,7 @@ func (s *Kube14OrNewerSpec) DefinitionsByNameByGroup() map[string]map[string]*De
 			if _, ok := s.definitionsByNameCache[gvk.Kind]; !ok {
 				s.definitionsByNameCache[gvk.Kind] = map[string]*Definition{}
 			}
-			s.definitionsByNameCache[gvk.Kind][gvk.ApiVersion()] = def
+			s.definitionsByNameCache[gvk.Kind][gvk.GroupVersion()] = def
 		}
 	}
 	return s.definitionsByNameCache
@@ -198,4 +201,16 @@ func ParseRef(ref string) string {
 		panic(errors.Errorf("unable to parse ref: expected 3 pieces, found %d (%s)", len(pieces), ref))
 	}
 	return pieces[2]
+}
+
+func ParseGVK(gvk string) *GVK {
+	split := strings.Split(gvk, ".")
+	if len(split) < 3 {
+		panic(errors.Errorf("invalid gvk string: %s", gvk))
+	}
+	return &GVK{
+		Group:   strings.Join(split[:len(split)-2], "."),
+		Version: split[len(split)-2],
+		Kind:    split[len(split)-1],
+	}
 }

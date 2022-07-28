@@ -27,13 +27,6 @@ func CompareResolvedResourcesHelper(a interface{}, b interface{}, pathContext []
 		diffs.Add(&utils.JDiff{Type: utils.DiffTypeRemove, Old: a, New: b, Path: path})
 	} else {
 		switch aVal := a.(type) {
-		case *Any:
-			switch bVal := b.(type) {
-			case *Any:
-				// nothing to do
-			default:
-				diffs.Add(&utils.JDiff{Type: utils.DiffTypeChange, Old: aVal, New: bVal, Path: path})
-			}
 		case *Circular:
 			switch bVal := b.(type) {
 			case *Circular:
@@ -115,8 +108,6 @@ type Object struct {
 	Fields   map[string]interface{}
 	Required []string
 }
-
-type Any struct{}
 
 type Circular struct{} // TODO at some point, add in a string to refer to type by name?
 

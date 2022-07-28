@@ -49,6 +49,13 @@ func MustReadSwaggerSpecFromGithub(version KubeVersion) *Kube14OrNewerSpec {
 	return spec
 }
 
+func HackMustReadSwaggerSpecFromGithub(version KubeVersion) *KubeSpec {
+	path := MakePathFromKubeVersion(version)
+	spec, err := json.ParseFile[KubeSpec](path)
+	utils.DoOrDie(err)
+	return spec
+}
+
 func MustDownloadSwaggerSpec(version KubeVersion) []byte {
 	bytes, err := utils.GetURL(version.SwaggerSpecURL())
 	utils.DoOrDie(err)
