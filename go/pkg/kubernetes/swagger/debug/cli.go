@@ -48,7 +48,7 @@ func setupParseCommand() *cobra.Command {
 }
 
 func RunParse(args *ParseArgs) {
-	spec := swagger.MustReadSwaggerSpec(swagger.MustVersion(args.Version))
+	spec := swagger.MustReadSwaggerSpecFromGithub(swagger.MustVersion(args.Version))
 
 	for name, t := range spec.Definitions {
 		for propName, prop := range t.Properties {
@@ -93,9 +93,9 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 	}
 
 	path := swagger.MakePathFromKubeVersion(swagger.MustVersion(args.Version))
-	specObj, err := swagger.ReadSwaggerSpecFromFile[map[string]interface{}](path)
+	specObj, err := json.ParseFile[map[string]interface{}](path)
 	utils.DoOrDie(err)
-	//spec := MustReadSwaggerSpec(args.Version) // TODO
+	//spec := MustReadSwaggerSpecFromGithub(args.Version) // TODO
 
 	//starterPaths := []string{"paths", "definitions"}
 	starterPaths := []string{"definitions"}
@@ -113,10 +113,10 @@ func RunAnalyzeSchema(args *AnalyzeSchemaArgs) {
 func RunAnalyzeSchemaLatest() {
 	for _, version := range swagger.LatestKubePatchVersions {
 		path := fmt.Sprintf("test-schema/%s.txt", version)
-		specBytes := swagger.DownloadSwaggerSpec(version)
+		specBytes := swagger.MustDownloadSwaggerSpec(version)
 		specObj, err := json.Parse[map[string]interface{}](specBytes)
 		utils.DoOrDie(err)
-		//spec := MustReadSwaggerSpec(args.Version) // TODO
+		//spec := MustReadSwaggerSpecFromGithub(args.Version) // TODO
 
 		//starterPathsToInspect := []string{"paths", "definitions"}
 		starterPathsToInspect := []string{"definitions"}

@@ -152,6 +152,7 @@ type ExplainResourceArgs struct {
 	GroupVersions []string
 	TypeNames     []string
 	Version       string
+	Depth         int
 }
 
 func setupExplainResourceCommand() *cobra.Command {
@@ -170,6 +171,7 @@ func setupExplainResourceCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&args.GroupVersions, "group-version", []string{}, "group/versions to look for type under; looks under all if not specified")
 	command.Flags().StringSliceVar(&args.TypeNames, "type", []string{}, "kubernetes types to explain")
 	command.Flags().StringVar(&args.Version, "version", "1.23.0", "kubernetes spec version")
+	command.Flags().IntVar(&args.Depth, "depth", 0, "number of layers to print; 0 is treated as unlimited")
 
 	return command
 }

@@ -13,7 +13,7 @@ import (
 )
 
 func RunExplainResource(args *ExplainResourceArgs) {
-	swaggerSpec := MustReadSwaggerSpec(MustVersion(args.Version))
+	swaggerSpec := MustReadSwaggerSpecFromGithub(MustVersion(args.Version))
 
 	// no types specified?  use them all
 	//   otherwise, filter down to just the ones requested

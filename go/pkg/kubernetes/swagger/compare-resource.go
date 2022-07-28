@@ -13,8 +13,8 @@ func RunCompareResource(args *CompareResourceArgs) {
 		panic(errors.Errorf("expected 2 kube versions, found %+v", args.Versions))
 	}
 
-	swaggerSpec1 := MustReadSwaggerSpec(MustVersion(args.Versions[0]))
-	swaggerSpec2 := MustReadSwaggerSpec(MustVersion(args.Versions[1]))
+	swaggerSpec1 := MustReadSwaggerSpecFromGithub(MustVersion(args.Versions[0]))
+	swaggerSpec2 := MustReadSwaggerSpecFromGithub(MustVersion(args.Versions[1]))
 
 	typeNames := map[string]interface{}{}
 	if len(args.TypeNames) > 0 {

@@ -104,7 +104,7 @@ func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(stri
 		kubeVersion := MustVersion(version)
 		logrus.Debugf("kube version: %s", version)
 
-		spec := MustReadSwaggerSpec(kubeVersion)
+		spec := MustReadSwaggerSpecFromGithub(kubeVersion)
 		for name, def := range spec.Definitions {
 			if len(def.XKubernetesGroupVersionKind) > 0 {
 				logrus.Debugf("%s, %s, %+v\n", name, def.Type, def.XKubernetesGroupVersionKind)

@@ -33,7 +33,7 @@ func TestSchemaParser() {
 }
 
 func CheckSchema(dir string, version swagger.KubeVersion) {
-	specBytes := swagger.DownloadSwaggerSpec(version)
+	specBytes := swagger.MustDownloadSwaggerSpec(version)
 	// remove paths
 	specMap, err := json.Parse[map[string]interface{}](specBytes)
 	utils.DoOrDie(err)
@@ -63,7 +63,7 @@ func CheckSchema(dir string, version swagger.KubeVersion) {
 	//diff, err := utils.CommandRun(exec.Command("git", "diff", "--no-index", "my-spec-1.txt", "my-spec-2.txt"))
 	//utils.DoOrDie(err)
 	//fmt.Printf("%s\n", diff)
-	//spec := MustReadSwaggerSpec(version)
+	//spec := MustReadSwaggerSpecFromGithub(version)
 	//specString := utils.JsonString(spec)
 	//
 	//spec2, err := utils.ParseJson[Spec]([]byte(specString))
