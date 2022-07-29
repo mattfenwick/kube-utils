@@ -41,12 +41,12 @@ func CheckSchema(dir string, version swagger.KubeVersion) {
 	specMapBytes, err := json.MarshalWithOptions(specMap, json.DefaultMarshalOptions)
 	utils.DoOrDie(err)
 	// carry on
-	spec, err := json.Parse[swagger.Kube14OrNewerSpec](specMapBytes)
+	spec, err := json.Parse[swagger.KubeSpec](specMapBytes)
 	utils.DoOrDie(err)
 
 	specString, err := json.MarshalToString(spec)
 	utils.DoOrDie(err)
-	spec2, err := json.Parse[swagger.Kube14OrNewerSpec]([]byte(specString))
+	spec2, err := json.Parse[swagger.KubeSpec]([]byte(specString))
 	utils.DoOrDie(err)
 
 	utils.DoOrDie(os.MkdirAll(dir, 0777))
