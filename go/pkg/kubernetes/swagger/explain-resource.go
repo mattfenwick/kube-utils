@@ -13,18 +13,32 @@ import (
 
 func RunExplainResource(args *ExplainResourceArgs) {
 	spec := MustReadSwaggerSpecFromGithub(MustVersion(args.Version))
-	gvks := spec.ResolveStructure()
+	resolvedGVKs := spec.ResolveStructure()
 
-	resources := set.NewSet(args.TypeNames)
+	allowedGVs := set.NewSet(args.GroupVersions)
+	allowGV := func(gv string) bool {
+		return len(args.GroupVersions) == 0 || allowedGVs.Contains(gv)
+	}
+	allowedResources := set.NewSet(args.TypeNames)
+	allowResource := func(name string) bool {
+		return len(args.TypeNames) == 0 || allowedResources.Contains(name)
+	}
 	fmt.Printf("\n\n\n\n")
-	for _, name := range slice.Sort(maps.Keys(gvks)) {
-		if len(args.TypeNames) > 0 && !resources.Contains(name) {
+	for _, name := range slice.Sort(maps.Keys(resolvedGVKs)) {
+		if !allowResource(name) {
 			continue
 		}
+		gvks := map[string]*ResolvedType{}
+		for gv, kind := range resolvedGVKs[name] {
+			if allowGV(gv) {
+				gvks[gv] = kind
+			}
+		}
+
 		switch args.Format {
 		case "debug":
 			fmt.Printf("%s:\n", name)
-			for gv, kind := range gvks[name] {
+			for gv, kind := range gvks {
 				fmt.Printf("gv: %s:\n", gv)
 				for _, path := range kind.Paths([]string{name}) {
 					if args.Depth == 0 || len(path.Fst) <= args.Depth {
@@ -35,13 +49,13 @@ func RunExplainResource(args *ExplainResourceArgs) {
 			//json.Print(resolved[name])
 			fmt.Printf("\n\n")
 		case "table":
-			for gv, kind := range gvks[name] {
+			for gv, kind := range gvks {
 				fmt.Printf("%s %s:\n", gv, name)
 				fmt.Printf("%s\n\n", TableResource(kind, args.Depth))
 			}
 		case "condensed":
 			fmt.Printf("%s:\n", name)
-			for gv, kind := range gvks[name] {
+			for gv, kind := range gvks {
 				fmt.Printf("%s\n\n", CondensedResource(gv, name, kind, args.Depth))
 			}
 		default:
