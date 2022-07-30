@@ -23,6 +23,18 @@ func RunExplainResource(args *ExplainResourceArgs) {
 	allowResource := func(name string) bool {
 		return len(args.TypeNames) == 0 || allowedResources.Contains(name)
 	}
+	allowPath := func(path []string) bool {
+		if len(args.Paths) == 0 {
+			return true
+		}
+		for _, prefix := range args.Paths {
+			if IsPrefixOf(strings.Split(prefix, "."), path) {
+				return true
+			}
+		}
+		return false
+	}
+
 	fmt.Printf("\n\n\n\n")
 	for _, name := range slice.Sort(maps.Keys(resolvedGVKs)) {
 		if !allowResource(name) {
@@ -41,7 +53,7 @@ func RunExplainResource(args *ExplainResourceArgs) {
 			for gv, kind := range gvks {
 				fmt.Printf("gv: %s:\n", gv)
 				for _, path := range kind.Paths([]string{name}) {
-					if args.Depth == 0 || len(path.Fst) <= args.Depth {
+					if (args.Depth == 0 || len(path.Fst) <= args.Depth) && allowPath(path.Fst) {
 						fmt.Printf("  %+v: %s\n", path.Fst, path.Snd)
 					}
 				}
@@ -51,7 +63,7 @@ func RunExplainResource(args *ExplainResourceArgs) {
 		case "table":
 			for gv, kind := range gvks {
 				fmt.Printf("%s %s:\n", gv, name)
-				fmt.Printf("%s\n\n", TableResource(kind, args.Depth))
+				fmt.Printf("%s\n\n", TableResource(kind, args.Depth, allowPath))
 			}
 		case "condensed":
 			fmt.Printf("%s:\n", name)
@@ -64,7 +76,7 @@ func RunExplainResource(args *ExplainResourceArgs) {
 	}
 }
 
-func TableResource(kind *ResolvedType, depth int) string {
+func TableResource(kind *ResolvedType, depth int, allowPath func([]string) bool) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -72,18 +84,15 @@ func TableResource(kind *ResolvedType, depth int) string {
 	table.SetAutoMergeCells(true)
 	table.SetColMinWidth(1, 100)
 	table.SetHeader([]string{"Type", "Field"})
-	for _, values := range ExplainResource(kind, []string{}, 0, depth) {
+	for _, values := range ExplainResource(kind, []string{}, 0, depth, allowPath) {
 		table.Append([]string{values[1], values[0]})
 	}
 	table.Render()
 	return tableString.String()
 }
 
-func ExplainResource(obj *ResolvedType, pathContext []string, depth int, maxDepth int) [][2]string {
+func ExplainResource(obj *ResolvedType, pathContext []string, depth int, maxDepth int, allowPath func([]string) bool) [][2]string {
 	logrus.Debugf("path: %+v", pathContext)
-	if maxDepth > 0 && depth >= maxDepth {
-		return nil
-	}
 
 	path := make([]string, len(pathContext))
 	copy(path, pathContext)
@@ -95,14 +104,14 @@ func ExplainResource(obj *ResolvedType, pathContext []string, depth int, maxDept
 		out = append(out, [2]string{strings.Join(path, "."), obj.Primitive})
 	} else if obj.Array != nil {
 		out = append(out, [2]string{strings.Join(path, "."), "array"})
-		out = append(out, ExplainResource(obj.Array, append(path, "[]"), depth+1, maxDepth)...)
+		out = append(out, ExplainResource(obj.Array, append(path, "[]"), depth+1, maxDepth, allowPath)...)
 	} else if obj.Object != nil {
 		out = append(out, [2]string{strings.Join(path, "."), "object"})
 		for _, fieldName := range slice.Sort(maps.Keys(obj.Object.Properties)) {
-			out = append(out, ExplainResource(obj.Object.Properties[fieldName], append(path, fieldName), depth+1, maxDepth)...)
+			out = append(out, ExplainResource(obj.Object.Properties[fieldName], append(path, fieldName), depth+1, maxDepth, allowPath)...)
 		}
 		if obj.Object.AdditionalProperties != nil {
-			out = append(out, ExplainResource(obj.Object.AdditionalProperties, append(path, "additionalProperties"), depth+1, maxDepth)...)
+			out = append(out, ExplainResource(obj.Object.AdditionalProperties, append(path, "additionalProperties"), depth+1, maxDepth, allowPath)...)
 		}
 	} else if obj.Empty {
 
@@ -110,6 +119,15 @@ func ExplainResource(obj *ResolvedType, pathContext []string, depth int, maxDept
 		panic(errors.Errorf("invalid ResolvedType: %+v", obj))
 	}
 	return out
+}
+
+func IsPrefixOf[A comparable](xs []A, ys []A) bool {
+	for i := 0; i < len(xs); i++ {
+		if i >= len(ys) || xs[i] != ys[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func CondensedResource(gv string, name string, kind *ResolvedType, depth int) string {

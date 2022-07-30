@@ -153,6 +153,7 @@ type ExplainResourceArgs struct {
 	TypeNames     []string
 	Version       string
 	Depth         int
+	Paths         []string
 }
 
 func setupExplainResourceCommand() *cobra.Command {
@@ -172,6 +173,7 @@ func setupExplainResourceCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&args.TypeNames, "type", []string{}, "kubernetes types to explain")
 	command.Flags().StringVar(&args.Version, "version", "1.23.0", "kubernetes spec version")
 	command.Flags().IntVar(&args.Depth, "depth", 0, "number of layers to print; 0 is treated as unlimited")
+	command.Flags().StringSliceVar(&args.Paths, "path", []string{}, "paths to search under, components separated by '.'; if empty, all paths are searched")
 
 	return command
 }
