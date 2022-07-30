@@ -6,15 +6,11 @@ import (
 	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 	"strings"
 )
 
 func RunExplainResource(args *ExplainResourceArgs) {
-	spec := MustReadSwaggerSpecFromGithub(MustVersion(args.Version))
-	resolvedGVKs := spec.ResolveStructure()
-
 	allowedGVs := set.NewSet(args.GroupVersions)
 	allowGV := func(gv string) bool {
 		return len(args.GroupVersions) == 0 || allowedGVs.Contains(gv)
@@ -23,60 +19,63 @@ func RunExplainResource(args *ExplainResourceArgs) {
 	allowResource := func(name string) bool {
 		return len(args.TypeNames) == 0 || allowedResources.Contains(name)
 	}
-	allowPath := func(path []string) bool {
-		if len(args.Paths) == 0 {
+	allowDepth := func(prefix int, depth int) bool {
+		if args.Depth == 0 {
+			// always allow if maxDepth is unset
 			return true
 		}
-		for _, prefix := range args.Paths {
-			if IsPrefixOf(strings.Split(prefix, "."), path) {
+		return (depth - prefix) <= args.Depth
+	}
+	allowedPaths := slice.Map(func(p string) []string { return strings.Split(p, ".") }, args.Paths)
+	allowPath := func(path []string) bool {
+		if len(allowedPaths) == 0 {
+			return true
+		}
+		for _, prefix := range allowedPaths {
+			if IsPrefixOf(prefix, path) && allowDepth(len(prefix), len(path)) {
 				return true
 			}
 		}
 		return false
 	}
 
-	fmt.Printf("\n\n\n\n")
-	for _, name := range slice.Sort(maps.Keys(resolvedGVKs)) {
-		if !allowResource(name) {
-			continue
-		}
-		gvks := map[string]*ResolvedType{}
-		for gv, kind := range resolvedGVKs[name] {
-			if allowGV(gv) {
-				gvks[gv] = kind
-			}
-		}
+	//table := NewPivotTable("?", args.KubeVersions)
 
-		switch args.Format {
-		case "debug":
-			fmt.Printf("%s:\n", name)
-			for gv, kind := range gvks {
-				fmt.Printf("gv: %s:\n", gv)
-				for _, path := range kind.Paths([]string{name}) {
-					if (args.Depth == 0 || len(path.Fst) <= args.Depth) && allowPath(path.Fst) {
-						fmt.Printf("  %+v: %s\n", path.Fst, path.Snd)
-					}
+	for _, kubeVersion := range args.KubeVersions {
+		fmt.Printf("%s\n", kubeVersion)
+		spec := MustReadSwaggerSpecFromGithub(MustVersion(kubeVersion))
+		resolvedGVKs := spec.ResolveStructure()
+
+		for _, name := range slice.Sort(maps.Keys(resolvedGVKs)) {
+			if !allowResource(name) {
+				continue
+			}
+			gvks := map[string]*ResolvedType{}
+			for gv, kind := range resolvedGVKs[name] {
+				if allowGV(gv) {
+					gvks[gv] = kind
 				}
 			}
-			//json.Print(resolved[name])
-			fmt.Printf("\n\n")
-		case "table":
-			for gv, kind := range gvks {
-				fmt.Printf("%s %s:\n", gv, name)
-				fmt.Printf("%s\n\n", TableResource(kind, args.Depth, allowPath))
+
+			switch args.Format {
+			case "table":
+				for gv, kind := range gvks {
+					fmt.Printf("%s %s:\n", gv, name)
+					fmt.Printf("%s\n\n", TableResource(kind, allowPath))
+				}
+			case "condensed":
+				fmt.Printf("%s:\n", name)
+				for gv, kind := range gvks {
+					fmt.Printf("%s\n\n", CondensedResource(gv, kind, allowPath))
+				}
+			default:
+				panic(errors.Errorf("invalid output format: %s", args.Format))
 			}
-		case "condensed":
-			fmt.Printf("%s:\n", name)
-			for gv, kind := range gvks {
-				fmt.Printf("%s\n\n", CondensedResource(gv, name, kind, args.Depth))
-			}
-		default:
-			panic(errors.Errorf("invalid output format: %s", args.Format))
 		}
 	}
 }
 
-func TableResource(kind *ResolvedType, depth int, allowPath func([]string) bool) string {
+func TableResource(kind *ResolvedType, allowPath func([]string) bool) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -84,41 +83,14 @@ func TableResource(kind *ResolvedType, depth int, allowPath func([]string) bool)
 	table.SetAutoMergeCells(true)
 	table.SetColMinWidth(1, 100)
 	table.SetHeader([]string{"Type", "Field"})
-	for _, values := range ExplainResource(kind, []string{}, 0, depth, allowPath) {
-		table.Append([]string{values[1], values[0]})
+	for _, pair := range kind.Paths([]string{}) {
+		path, vType := pair.Fst, pair.Snd
+		if allowPath(path) {
+			table.Append([]string{strings.Join(path, "."), vType})
+		}
 	}
 	table.Render()
 	return tableString.String()
-}
-
-func ExplainResource(obj *ResolvedType, pathContext []string, depth int, maxDepth int, allowPath func([]string) bool) [][2]string {
-	logrus.Debugf("path: %+v", pathContext)
-
-	path := make([]string, len(pathContext))
-	copy(path, pathContext)
-
-	var out [][2]string
-	if obj.Circular != "" {
-		out = append(out, [2]string{strings.Join(path, "."), obj.Circular})
-	} else if obj.Primitive != "" {
-		out = append(out, [2]string{strings.Join(path, "."), obj.Primitive})
-	} else if obj.Array != nil {
-		out = append(out, [2]string{strings.Join(path, "."), "array"})
-		out = append(out, ExplainResource(obj.Array, append(path, "[]"), depth+1, maxDepth, allowPath)...)
-	} else if obj.Object != nil {
-		out = append(out, [2]string{strings.Join(path, "."), "object"})
-		for _, fieldName := range slice.Sort(maps.Keys(obj.Object.Properties)) {
-			out = append(out, ExplainResource(obj.Object.Properties[fieldName], append(path, fieldName), depth+1, maxDepth, allowPath)...)
-		}
-		if obj.Object.AdditionalProperties != nil {
-			out = append(out, ExplainResource(obj.Object.AdditionalProperties, append(path, "additionalProperties"), depth+1, maxDepth, allowPath)...)
-		}
-	} else if obj.Empty {
-
-	} else {
-		panic(errors.Errorf("invalid ResolvedType: %+v", obj))
-	}
-	return out
 }
 
 func IsPrefixOf[A comparable](xs []A, ys []A) bool {
@@ -130,13 +102,14 @@ func IsPrefixOf[A comparable](xs []A, ys []A) bool {
 	return true
 }
 
-func CondensedResource(gv string, name string, kind *ResolvedType, depth int) string {
+func CondensedResource(gv string, kind *ResolvedType, allowPath func([]string) bool) string {
 	lines := []string{gv + ":"}
-	for _, path := range kind.Paths([]string{name}) {
-		if depth == 0 || len(path.Fst) <= depth {
-			prefix := strings.Repeat("  ", len(path.Fst)-1)
-			typeString := fmt.Sprintf("%s%s", prefix, path.Fst[len(path.Fst)-1])
-			lines = append(lines, fmt.Sprintf("%-60s    %s", typeString, path.Snd))
+	for _, pair := range kind.Paths([]string{}) {
+		path, vType := pair.Fst, pair.Snd
+		if len(path) > 0 && allowPath(path) {
+			prefix := strings.Repeat("  ", len(path)-1)
+			typeString := fmt.Sprintf("%s%s", prefix, path[len(path)-1])
+			lines = append(lines, fmt.Sprintf("%-60s    %s", typeString, vType))
 		}
 	}
 	return strings.Join(lines, "\n")

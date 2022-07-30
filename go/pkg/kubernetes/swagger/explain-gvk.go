@@ -4,77 +4,10 @@ import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger/apiversions"
-	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/maps"
 	"strings"
 )
-
-// ExplainGVKTable models a pivot table
-type ExplainGVKTable struct {
-	FirstColumnHeader string
-	Rows              map[string]map[string][]string
-	Columns           []string
-}
-
-func (e *ExplainGVKTable) Add(rowKey string, columnKey string, value string) {
-	if _, ok := e.Rows[rowKey]; !ok {
-		e.Rows[rowKey] = map[string][]string{}
-	}
-	e.Rows[rowKey][columnKey] = append(e.Rows[rowKey][columnKey], value)
-}
-
-func formatCell(items []string) string {
-	return strings.Join(slice.Sort(items), "\n")
-}
-
-func (e *ExplainGVKTable) FormattedTable(calculateDiff bool) string {
-	tableString := &strings.Builder{}
-	table := tablewriter.NewWriter(tableString)
-	table.SetAutoWrapText(false)
-	table.SetRowLine(true)
-	table.SetAutoMergeCells(true)
-	table.SetHeader(append([]string{e.FirstColumnHeader}, e.Columns...))
-	if calculateDiff {
-		if len(e.Columns) == 0 {
-			panic(errors.Errorf("unable to calculate diff for 0 versions"))
-		}
-		for _, rowKey := range slice.Sort(maps.Keys(e.Rows)) {
-			prev := e.Rows[rowKey][e.Columns[0]]
-			row := []string{rowKey, formatCell(prev)}
-
-			for _, columnKey := range e.Columns[1:] {
-				curr := e.Rows[rowKey][columnKey]
-
-				diff := apiversions.SliceDiff(prev, curr)
-				diff.Sort()
-
-				var add, remove string
-				if len(diff.Added) > 0 {
-					add = fmt.Sprintf("add:\n  %s\n\n", strings.Join(slice.Sort(diff.Added), "\n  "))
-				}
-				if len(diff.Removed) > 0 {
-					add = fmt.Sprintf("remove:\n  %s\n\n", strings.Join(slice.Sort(diff.Removed), "\n  "))
-				}
-				row = append(row, fmt.Sprintf("%s%s", add, remove))
-
-				prev = curr
-			}
-			table.Append(row)
-		}
-	} else {
-		for _, rowKey := range slice.Sort(maps.Keys(e.Rows)) {
-			row := []string{rowKey}
-			for _, columnKey := range e.Columns {
-				row = append(row, formatCell(e.Rows[rowKey][columnKey]))
-			}
-			table.Append(row)
-		}
-	}
-	table.Render()
-	return tableString.String()
-}
 
 type ExplainGVKGroupBy string
 
@@ -95,11 +28,7 @@ func (e ExplainGVKGroupBy) Header() string {
 }
 
 func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(string, string) bool, calculateDiff bool) string {
-	table := &ExplainGVKTable{
-		FirstColumnHeader: groupBy.Header(),
-		Rows:              map[string]map[string][]string{},
-		Columns:           versions,
-	}
+	table := NewPivotTable(groupBy.Header(), versions)
 	for _, version := range versions {
 		kubeVersion := MustVersion(version)
 		logrus.Debugf("kube version: %s", version)
@@ -128,5 +57,38 @@ func ExplainGvks(groupBy ExplainGVKGroupBy, versions []string, include func(stri
 		}
 	}
 
-	return table.FormattedTable(calculateDiff)
+	if calculateDiff {
+		return table.FormattedTable(func(rowKey string, values [][]string) []string {
+			if len(values) == 0 {
+				panic(errors.Errorf("unable to calculate diff for 0 versions"))
+			}
+			prev := values[0]
+			row := []string{rowKey, formatCell(prev)}
+
+			for _, curr := range values[1:] {
+				diff := apiversions.SliceDiff(prev, curr)
+				diff.Sort()
+
+				var add, remove string
+				if len(diff.Added) > 0 {
+					add = fmt.Sprintf("add:\n  %s\n\n", strings.Join(slice.Sort(diff.Added), "\n  "))
+				}
+				if len(diff.Removed) > 0 {
+					add = fmt.Sprintf("remove:\n  %s\n\n", strings.Join(slice.Sort(diff.Removed), "\n  "))
+				}
+				row = append(row, fmt.Sprintf("%s%s", add, remove))
+
+				prev = curr
+			}
+			return row
+		})
+	} else {
+		return table.FormattedTable(func(rowKey string, values [][]string) []string {
+			return slice.Cons(rowKey, slice.Map(formatCell, values))
+		})
+	}
+}
+
+func formatCell(items []string) string {
+	return strings.Join(slice.Sort(items), "\n")
 }

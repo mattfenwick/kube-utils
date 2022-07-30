@@ -4,7 +4,6 @@ import (
 	"github.com/mattfenwick/collections/pkg/base"
 	"github.com/mattfenwick/collections/pkg/function"
 	"github.com/mattfenwick/collections/pkg/slice"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
@@ -195,29 +194,31 @@ type ResolvedType struct {
 	Circular  string
 }
 
-func (r *ResolvedType) Paths(context []string) []*base.Pair[[]string, string] {
-	if r.Empty {
-		return []*base.Pair[[]string, string]{base.NewPair(utils.CopySlice(context), "?")}
+func (r *ResolvedType) Paths(pathContext []string) []*base.Pair[[]string, string] {
+	logrus.Debugf("path: %+v", pathContext)
+
+	path := slice.Map(function.Id[string], pathContext)
+
+	var out []*base.Pair[[]string, string]
+	if r.Circular != "" {
+		out = append(out, base.NewPair(path, r.Circular))
 	} else if r.Primitive != "" {
-		return []*base.Pair[[]string, string]{base.NewPair(utils.CopySlice(context), r.Primitive)}
+		out = append(out, base.NewPair(path, r.Primitive))
 	} else if r.Array != nil {
-		return append(
-			[]*base.Pair[[]string, string]{base.NewPair(utils.CopySlice(context), "[]")},
-			r.Array.Paths(slice.Append(context, []string{"[]"}))...)
+		out = append(out, base.NewPair(path, "array"))
+		out = append(out, r.Array.Paths(slice.Append(path, []string{"[]"}))...)
 	} else if r.Object != nil {
-		out := []*base.Pair[[]string, string]{
-			base.NewPair(utils.CopySlice(context), "object"),
-		}
-		for _, name := range slice.Sort(maps.Keys(r.Object.Properties)) {
-			prop := r.Object.Properties[name]
-			out = append(out, prop.Paths(slice.Append(context, []string{name}))...)
+		out = append(out, base.NewPair(path, "object"))
+		for _, fieldName := range slice.Sort(maps.Keys(r.Object.Properties)) {
+			out = append(out, r.Object.Properties[fieldName].Paths(slice.Append(path, []string{fieldName}))...)
 		}
 		if r.Object.AdditionalProperties != nil {
-			out = append(out, r.Object.AdditionalProperties.Paths(slice.Append(context, []string{"additionalProperties"}))...)
+			out = append(out, r.Object.AdditionalProperties.Paths(slice.Append(path, []string{"additionalProperties"}))...)
 		}
-		return out
-	} else if r.Circular != "" {
-		return []*base.Pair[[]string, string]{base.NewPair(utils.CopySlice(context), "circular: "+r.Circular)}
+	} else if r.Empty {
+		out = append(out, base.NewPair(path, "?"))
+	} else {
+		panic(errors.Errorf("invalid ResolvedType: %+v", r))
 	}
-	panic(errors.Errorf("invalid ResolvedType value: %+v", r))
+	return out
 }
