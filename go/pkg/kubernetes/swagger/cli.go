@@ -2,34 +2,69 @@ package swagger
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/collections/pkg/set"
+	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func SetupResourceCommand() *cobra.Command {
+func RunRootSchemaCommand() {
+	command := SetupRootSchemaCommand()
+	utils.DoOrDie(errors.Wrapf(command.Execute(), "run root schema command"))
+}
+
+type RootSchemaFlags struct {
+	Verbosity string
+}
+
+func SetupRootSchemaCommand() *cobra.Command {
+	flags := &RootSchemaFlags{}
 	command := &cobra.Command{
-		Use:   "resource",
-		Short: "kube openapi resource schema tools",
-		Args:  cobra.ExactArgs(0),
+		Use:   "schema",
+		Short: "schema inspection utilities",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return utils.SetUpLogger(flags.Verbosity)
+		},
 	}
 
+	command.PersistentFlags().StringVarP(&flags.Verbosity, "verbosity", "v", "info", "log level; one of [info, debug, trace, warn, error, fatal, panic]")
+
+	command.AddCommand(SetupVersionCommand())
 	command.AddCommand(setupExplainResourceCommand())
 	command.AddCommand(setupCompareResourceCommand())
+	command.AddCommand(setupExplainGvkCommand())
 
 	return command
 }
 
-func SetupGVKCommand() *cobra.Command {
+var (
+	version   = "development"
+	gitSHA    = "development"
+	buildTime = "development"
+)
+
+func SetupVersionCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:   "gvk",
-		Short: "kube openapi gvk (Group/Version/Kind) schema tools",
+		Use:   "version",
+		Short: "print out version information",
 		Args:  cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, as []string) {
+			RunVersionCommand()
+		},
 	}
 
-	command.AddCommand(setupExplainGvkCommand())
-
 	return command
+}
+
+func RunVersionCommand() {
+	jsonString, err := json.MarshalToString(map[string]string{
+		"Version":   version,
+		"GitSHA":    gitSHA,
+		"BuildTime": buildTime,
+	})
+	utils.DoOrDie(err)
+	fmt.Printf("KubeUtils version: \n%s\n", jsonString)
 }
 
 var (
@@ -97,7 +132,7 @@ func setupExplainGvkCommand() *cobra.Command {
 	args := &ExplainGVKArgs{}
 
 	command := &cobra.Command{
-		Use:   "explain",
+		Use:   "gvk",
 		Short: "explain gvks from a swagger spec",
 		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, as []string) {
