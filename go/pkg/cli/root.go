@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger/debug"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -29,9 +28,7 @@ func SetupRootCommand() *cobra.Command {
 	command.PersistentFlags().StringVarP(&flags.Verbosity, "verbosity", "v", "info", "log level; one of [info, debug, trace, warn, error, fatal, panic]")
 
 	command.AddCommand(SetupVersionCommand())
-	command.AddCommand(setupKindCommand())
 	command.AddCommand(SetupAnalyzeYamlCommand())
-	command.AddCommand(debug.SetupSwaggerDebugCommand())
 
 	return command
 }
