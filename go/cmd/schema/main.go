@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/cli"
+	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes/swagger"
 )
 
 func main() {
-	cli.RunRootSchemaCommand()
+	swagger.RunRootSchemaCommand()
 }
