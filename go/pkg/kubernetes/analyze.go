@@ -11,15 +11,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func BounceMarshal(in interface{}, out interface{}) error {
-	yamlBytes, err := goyaml.Marshal(in)
-	if err != nil {
-		return errors.Wrapf(err, "unable to marshal yaml")
-	}
-	err = yaml.UnmarshalStrict(yamlBytes, out)
-	return nil
-}
-
 func BounceMarshalGeneric[A any](in interface{}) (*A, error) {
 	yamlBytes, err := goyaml.Marshal(in)
 	if err != nil {
@@ -45,21 +36,21 @@ func RunAnalyzeExample(path string) {
 		logrus.Infof("kind, name: %s, %s\n", kind, resourceName)
 		switch kind {
 		case "Deployment":
-			var dep *appsv1.Deployment
-			utils.DoOrDie(BounceMarshal(o, &dep))
+			dep, err := BounceMarshalGeneric[appsv1.Deployment](o)
+			utils.DoOrDie(err)
 			model.AddPodWrapper("Deployment", dep.Name, AnalyzeDeployment(dep))
 		case "StatefulSet":
-			var sset *appsv1.StatefulSet
-			utils.DoOrDie(BounceMarshal(o, &sset))
+			sset, err := BounceMarshalGeneric[appsv1.StatefulSet](o)
+			utils.DoOrDie(err)
 			model.AddPodWrapper("StatefulSet", sset.Name, AnalyzeStatefulSet(sset))
 		case "Job":
-			var job *batchv1.Job
-			utils.DoOrDie(BounceMarshal(o, &job))
+			job, err := BounceMarshalGeneric[batchv1.Job](o)
+			utils.DoOrDie(err)
 			model.AddPodWrapper("Job", job.Name, AnalyzeJob(job))
 		case "CronJob":
-			var job *batchv1.CronJob
-			utils.DoOrDie(BounceMarshal(o, &job))
-			model.AddPodWrapper("CronJob", job.Name, AnalyzeCronJob(job))
+			cj, err := BounceMarshalGeneric[batchv1.CronJob](o)
+			utils.DoOrDie(err)
+			model.AddPodWrapper("CronJob", cj.Name, AnalyzeCronJob(cj))
 		case "Secret":
 			model.Secrets = append(model.Secrets, resourceName)
 		case "ConfigMap":

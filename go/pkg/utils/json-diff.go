@@ -2,10 +2,10 @@ package utils
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
-	"sort"
 )
 
 type DiffType string
@@ -71,14 +71,10 @@ func JsonDiffHelper(a interface{}, b interface{}, pathContext []string, diffs *J
 		case map[string]interface{}:
 			switch bVal := b.(type) {
 			case map[string]interface{}:
-				aKeys := maps.Keys(aVal)
-				sort.Strings(aKeys)
-				for _, k := range aKeys {
+				for _, k := range slice.Sort(maps.Keys(aVal)) {
 					JsonDiffHelper(aVal[k], bVal[k], append(path, fmt.Sprintf(`%s`, k)), diffs)
 				}
-				bKeys := maps.Keys(bVal)
-				sort.Strings(bKeys)
-				for _, k := range bKeys {
+				for _, k := range slice.Sort(maps.Keys(bVal)) {
 					if _, ok := aVal[k]; !ok {
 						diffs.Add(&JDiff{Type: DiffTypeAdd, New: bVal[k], Path: append(path, fmt.Sprintf(`%s`, k))})
 					}

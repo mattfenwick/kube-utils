@@ -2,6 +2,8 @@ package graph
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/slice"
+	"golang.org/x/exp/maps"
 	"strings"
 )
 
@@ -51,19 +53,22 @@ func (g *Graph) RenderDotBody(indent string) []string {
 		fmt.Sprintf(`%s  label="%s";`, indent, g.Label),
 	}
 
-	for node, config := range g.Nodes {
+	for _, node := range slice.Sort(maps.Keys(g.Nodes)) {
+		config := g.Nodes[node]
 		lines = append(lines, fmt.Sprintf(`%s  "%s" [%s];`, indent, node, strings.Join(config, ", ")))
 	}
 	lines = append(lines, "")
 
-	for from, tos := range g.Edges {
+	for _, from := range slice.Sort(maps.Keys(g.Edges)) {
+		tos := g.Edges[from]
 		for to := range tos {
 			lines = append(lines, fmt.Sprintf(`%s  "%s" -> "%s" [color=red,penwidth=5,style="dashed"];`, indent, from, to))
 		}
 	}
 	lines = append(lines, "")
 
-	for _, sub := range g.Subgraphs {
+	for _, key := range slice.Sort(maps.Keys(g.Subgraphs)) {
+		sub := g.Subgraphs[key]
 		lines = append(lines, fmt.Sprintf(`%s  subgraph "cluster_%s" {`, indent, sub.Name))
 		lines = append(lines, sub.RenderDotBody(indent+"  ")...)
 		lines = append(lines, indent+"  }")

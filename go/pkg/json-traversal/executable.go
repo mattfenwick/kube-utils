@@ -3,6 +3,7 @@ package json_traversal
 import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/json"
+	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/go/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -10,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -72,11 +72,9 @@ func RunFindByPath() {
 	obj, err := json.ParseFile[map[string]interface{}](path)
 	utils.DoOrDie(errors.Wrapf(err, "unable to read json from %s", path))
 
-	results := JsonFindBySelector(*obj, selector, []*PathComponent{})
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Value.(string) < results[j].Value.(string)
-	})
+	results := slice.SortOn(func(a *Result) string {
+		return a.Value.(string)
+	}, JsonFindBySelector(*obj, selector, []*PathComponent{}))
 
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)

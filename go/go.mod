@@ -1,13 +1,11 @@
 module github.com/mattfenwick/kube-utils/go
 
-go 1.18
+go 1.19
 
 require (
 	github.com/go-resty/resty/v2 v2.7.0
-	github.com/mattfenwick/collections v0.1.9
+	github.com/mattfenwick/collections v0.2.1
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/onsi/ginkgo/v2 v2.1.4
-	github.com/onsi/gomega v1.19.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
 	github.com/sirupsen/logrus v1.8.1

@@ -7,7 +7,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
-	"sort"
 	"strings"
 )
 
@@ -242,19 +241,8 @@ func (m *Model) ImagesTable() {
 	table.SetHeader([]string{"Image", "Source"})
 
 	imageUsages := m.GetImageUsages()
-	var sortedImages []string
-	for image := range imageUsages {
-		sortedImages = append(sortedImages, image)
-	}
-	sort.Slice(sortedImages, func(i, j int) bool {
-		return sortedImages[i] < sortedImages[j]
-	})
-	logrus.Infof("sorted images: %+v", sortedImages)
-	for _, image := range sortedImages {
-		usages := imageUsages[image]
-		sort.Slice(usages, func(i, j int) bool {
-			return usages[i] < usages[j]
-		})
+	for _, image := range slice.Sort(maps.Keys(imageUsages)) {
+		usages := slice.Sort(imageUsages[image])
 		table.Append([]string{image, strings.Join(usages, "\n")})
 	}
 
