@@ -22,7 +22,12 @@ func CompareKeySets(a *set.Set[string], b *set.Set[string]) *KeySetComparison {
 	}
 }
 
-func BounceMarshalGeneric[A any](in interface{}) (*A, error) {
+// ParseObjectIntoType takes a weakly typed object -- such as an interface{}, a
+//   map[string]interface{}, etc. -- marshals it into yaml, then unmarshals it
+//   back into a strongly typed object -- such as a batchv1.Job
+//   The goal is to convert a weakly typed object into a strongly typed one;
+//   the yaml intermediary is just a convenient implementation detail.
+func ParseObjectIntoType[A any](in interface{}) (*A, error) {
 	yamlBytes, err := goyaml.Marshal(in)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to marshal yaml")

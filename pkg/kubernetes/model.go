@@ -6,9 +6,12 @@ import (
 	"github.com/mattfenwick/collections/pkg/set"
 	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/pkg/graph"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	"strings"
 )
 
@@ -49,6 +52,44 @@ func NewModel() *Model {
 		ConfigMaps: nil,
 		Skipped:    map[string][]string{},
 	}
+}
+
+func NewModelFromYaml(objs []map[string]interface{}) *Model {
+	model := NewModel()
+	for _, m := range slice.SortOn(getResourceName, objs) {
+		if m == nil {
+			logrus.Debugf("skipping nil\n")
+			continue
+		}
+		resourceName := getResourceName(m)
+		kind := m["kind"].(string)
+		logrus.Debugf("kind, name: %s, %s\n", kind, resourceName)
+		switch kind {
+		case "Deployment":
+			dep, err := ParseObjectIntoType[appsv1.Deployment](m)
+			utils.DoOrDie(err)
+			model.AddPodWrapper("Deployment", dep.Name, AnalyzeDeployment(dep))
+		case "StatefulSet":
+			sset, err := ParseObjectIntoType[appsv1.StatefulSet](m)
+			utils.DoOrDie(err)
+			model.AddPodWrapper("StatefulSet", sset.Name, AnalyzeStatefulSet(sset))
+		case "Job":
+			job, err := ParseObjectIntoType[batchv1.Job](m)
+			utils.DoOrDie(err)
+			model.AddPodWrapper("Job", job.Name, AnalyzeJob(job))
+		case "CronJob":
+			cj, err := ParseObjectIntoType[batchv1.CronJob](m)
+			utils.DoOrDie(err)
+			model.AddPodWrapper("CronJob", cj.Name, AnalyzeCronJob(cj))
+		case "Secret":
+			model.Secrets = append(model.Secrets, resourceName)
+		case "ConfigMap":
+			model.ConfigMaps = append(model.ConfigMaps, resourceName)
+		default:
+			model.AddSkippedResource(kind, resourceName)
+		}
+	}
+	return model
 }
 
 func (m *Model) AddSkippedResource(kind string, name string) {
