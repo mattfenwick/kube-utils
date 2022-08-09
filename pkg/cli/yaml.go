@@ -6,12 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type AnalyzeYamlArgs struct {
-	Path string
-}
-
 func SetupAnalyzeYamlCommand() *cobra.Command {
-	args := &AnalyzeYamlArgs{}
+	args := &kubernetes.YamlAnalysisArgs{}
 
 	command := &cobra.Command{
 		Use:   "analyze-yaml",
@@ -22,12 +18,15 @@ func SetupAnalyzeYamlCommand() *cobra.Command {
 		},
 	}
 
-	command.Flags().StringVar(&args.Path, "path", "", "path to yaml file")
-	utils.DoOrDie(command.MarkFlagRequired("path"))
+	command.Flags().StringVar(&args.ChartPath, "chart-path", "", "path to yaml file")
+	utils.DoOrDie(command.MarkFlagRequired("chart-path"))
+
+	command.Flags().BoolVar(&args.PrintSkipped, "print-skipped", true, "if true, prints skipped resources")
+	command.Flags().StringSliceVar(&args.Resources, "resources", []string{}, "pod-owning resources to print; if empty, all are printed")
 
 	return command
 }
 
-func RunAnalyzeYaml(args *AnalyzeYamlArgs) {
-	kubernetes.RunYamlAnalysis(args.Path)
+func RunAnalyzeYaml(args *kubernetes.YamlAnalysisArgs) {
+	kubernetes.RunYamlAnalysis(args)
 }

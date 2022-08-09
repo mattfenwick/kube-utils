@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/dict"
 	"github.com/mattfenwick/collections/pkg/set"
 	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/pkg/graph"
@@ -125,27 +126,12 @@ func (m *Model) GetImageUsages() map[string][]string {
 	return usages
 }
 
-func (m *Model) Tables() {
-	fmt.Println("\nskipped resources:")
-	m.SkippedResourcesTable()
-
-	fmt.Println("\nsecrets:")
-	m.SecretsTable()
-
-	fmt.Println("\nconfig maps:")
-	m.ConfigMapsTable()
-
-	fmt.Println("\nimages:")
-	m.ImagesTable()
-
-	for _, kind := range slice.Sort(maps.Keys(m.Pods)) {
-		resources := m.Pods[kind]
-		fmt.Printf("\nkind: %s\n", kind)
-		m.PodsTable(resources)
-	}
+func (m *Model) BuildTables() (string, string, string, string, map[string]string) {
+	makePodsTable := func(a map[string]*PodSpec) string { return m.PodsTable(a) }
+	return m.SkippedResourcesTable(), m.SecretsTable(), m.ConfigMapsTable(), m.ImagesTable(), dict.Map(makePodsTable, m.Pods)
 }
 
-func (m *Model) SkippedResourcesTable() {
+func (m *Model) SkippedResourcesTable() string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -159,10 +145,10 @@ func (m *Model) SkippedResourcesTable() {
 		}
 	}
 	table.Render()
-	fmt.Printf("%s\n", tableString)
+	return tableString.String()
 }
 
-func (m *Model) PodsTable(resources map[string]*PodSpec) {
+func (m *Model) PodsTable(resources map[string]*PodSpec) string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -180,10 +166,10 @@ func (m *Model) PodsTable(resources map[string]*PodSpec) {
 		}
 	}
 	table.Render()
-	fmt.Printf("%s\n", tableString)
+	return tableString.String()
 }
 
-func (m *Model) SecretsTable() {
+func (m *Model) SecretsTable() string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -202,10 +188,10 @@ func (m *Model) SecretsTable() {
 		table.Append([]string{secret, "unknown", strings.Join(m.SecretUsages(secret), "\n")})
 	}
 	table.Render()
-	fmt.Printf("%s\n", tableString)
+	return tableString.String()
 }
 
-func (m *Model) ConfigMapsTable() {
+func (m *Model) ConfigMapsTable() string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -224,10 +210,10 @@ func (m *Model) ConfigMapsTable() {
 		table.Append([]string{configMap, "unknown", strings.Join(m.ConfigMapUsages(configMap), "\n")})
 	}
 	table.Render()
-	fmt.Printf("%s\n", tableString)
+	return tableString.String()
 }
 
-func (m *Model) ImagesTable() {
+func (m *Model) ImagesTable() string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetAutoWrapText(false)
@@ -242,7 +228,7 @@ func (m *Model) ImagesTable() {
 	}
 
 	table.Render()
-	fmt.Printf("%s\n", tableString)
+	return tableString.String()
 }
 
 func (m *Model) Graph() *graph.Graph {
