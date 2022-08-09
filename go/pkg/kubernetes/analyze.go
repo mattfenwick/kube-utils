@@ -27,13 +27,13 @@ func RunAnalyzeExample(path string) {
 	model := NewModel()
 	for _, o := range objs {
 		if o == nil {
-			logrus.Infof("skipping nil\n")
+			logrus.Debugf("skipping nil\n")
 			continue
 		}
 		m := o.(map[string]interface{})
 		resourceName := m["metadata"].(map[string]interface{})["name"].(string)
 		kind := m["kind"].(string)
-		logrus.Infof("kind, name: %s, %s\n", kind, resourceName)
+		logrus.Debugf("kind, name: %s, %s\n", kind, resourceName)
 		switch kind {
 		case "Deployment":
 			dep, err := BounceMarshalGeneric[appsv1.Deployment](o)

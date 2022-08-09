@@ -70,11 +70,11 @@ func (m *Model) SecretConfigMapsUsages() (map[string][]string, map[string][]stri
 		for resourceName, podSpec := range podSpecs {
 			for _, container := range podSpec.Containers {
 				for usedSecret := range container.Secrets {
-					logrus.Infof("usage of secret %s by %s/%s/%s", usedSecret, kind, resourceName, container.Name)
+					logrus.Debugf("usage of secret %s by %s/%s/%s", usedSecret, kind, resourceName, container.Name)
 					usedSecrets[usedSecret] = append(usedSecrets[usedSecret], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
 				}
 				for usedConfigMap := range container.ConfigMaps {
-					logrus.Infof("usage of configmap %s by %s/%s/%s", usedConfigMap, kind, resourceName, container.Name)
+					logrus.Debugf("usage of configmap %s by %s/%s/%s", usedConfigMap, kind, resourceName, container.Name)
 					usedConfigMaps[usedConfigMap] = append(usedConfigMaps[usedConfigMap], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
 				}
 			}
