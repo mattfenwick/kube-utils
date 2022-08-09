@@ -29,5 +29,5 @@ func SetupAnalyzeYamlCommand() *cobra.Command {
 }
 
 func RunAnalyzeYaml(args *AnalyzeYamlArgs) {
-	kubernetes.RunAnalyzeExample(args.Path)
+	kubernetes.RunYamlAnalysis(args.Path)
 }
