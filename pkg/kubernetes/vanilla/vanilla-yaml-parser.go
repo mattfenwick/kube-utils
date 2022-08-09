@@ -3,7 +3,7 @@ package vanilla
 import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/set"
-	"github.com/mattfenwick/kube-utils/pkg/kubernetes"
+	"github.com/mattfenwick/collections/pkg/yaml"
 	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -21,7 +21,7 @@ func Run(path string) {
 	data, err := ioutil.ReadFile(path)
 	utils.DoOrDie(errors.Wrapf(err, "unable to read file"))
 
-	values, err := kubernetes.ParseMany(data)
+	values, err := yaml.ParseMany[interface{}](data)
 	for _, v := range values {
 		fmt.Printf("found value: %+v\n\n", v)
 	}

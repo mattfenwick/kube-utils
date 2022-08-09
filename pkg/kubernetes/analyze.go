@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"github.com/mattfenwick/collections/pkg/set"
+	"github.com/mattfenwick/collections/pkg/slice"
+	"github.com/mattfenwick/collections/pkg/yaml"
 	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -9,7 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/yaml"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 func BounceMarshalGeneric[A any](in interface{}) (*A, error) {
@@ -18,38 +20,41 @@ func BounceMarshalGeneric[A any](in interface{}) (*A, error) {
 		return nil, errors.Wrapf(err, "unable to marshal yaml")
 	}
 	var out A
-	err = yaml.UnmarshalStrict(yamlBytes, &out)
+	err = k8syaml.UnmarshalStrict(yamlBytes, &out)
 	return &out, errors.Wrapf(err, "unable to unmarshal k8s yaml")
 }
 
+func getResourceName(o map[string]interface{}) string {
+	return o["metadata"].(map[string]interface{})["name"].(string)
+}
+
 func RunAnalyzeExample(path string) {
-	objs, err := ParseManyFromFile(path)
+	objs, err := yaml.ParseManyFromFile[map[string]interface{}](path)
 	utils.DoOrDie(err)
 	model := NewModel()
-	for _, o := range objs {
-		if o == nil {
+	for _, m := range slice.SortOn(getResourceName, objs) {
+		if m == nil {
 			logrus.Debugf("skipping nil\n")
 			continue
 		}
-		m := o.(map[string]interface{})
-		resourceName := m["metadata"].(map[string]interface{})["name"].(string)
+		resourceName := getResourceName(m)
 		kind := m["kind"].(string)
 		logrus.Debugf("kind, name: %s, %s\n", kind, resourceName)
 		switch kind {
 		case "Deployment":
-			dep, err := BounceMarshalGeneric[appsv1.Deployment](o)
+			dep, err := BounceMarshalGeneric[appsv1.Deployment](m)
 			utils.DoOrDie(err)
 			model.AddPodWrapper("Deployment", dep.Name, AnalyzeDeployment(dep))
 		case "StatefulSet":
-			sset, err := BounceMarshalGeneric[appsv1.StatefulSet](o)
+			sset, err := BounceMarshalGeneric[appsv1.StatefulSet](m)
 			utils.DoOrDie(err)
 			model.AddPodWrapper("StatefulSet", sset.Name, AnalyzeStatefulSet(sset))
 		case "Job":
-			job, err := BounceMarshalGeneric[batchv1.Job](o)
+			job, err := BounceMarshalGeneric[batchv1.Job](m)
 			utils.DoOrDie(err)
 			model.AddPodWrapper("Job", job.Name, AnalyzeJob(job))
 		case "CronJob":
-			cj, err := BounceMarshalGeneric[batchv1.CronJob](o)
+			cj, err := BounceMarshalGeneric[batchv1.CronJob](m)
 			utils.DoOrDie(err)
 			model.AddPodWrapper("CronJob", cj.Name, AnalyzeCronJob(cj))
 		case "Secret":

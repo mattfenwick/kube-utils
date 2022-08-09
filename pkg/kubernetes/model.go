@@ -86,12 +86,12 @@ func (m *Model) SecretConfigMapsUsages() (map[string][]string, map[string][]stri
 
 func (m *Model) SecretUsages(name string) []string {
 	secretUsages, _ := m.SecretConfigMapsUsages()
-	return secretUsages[name]
+	return slice.Sort(secretUsages[name])
 }
 
 func (m *Model) ConfigMapUsages(name string) []string {
 	_, configMapUsages := m.SecretConfigMapsUsages()
-	return configMapUsages[name]
+	return slice.Sort(configMapUsages[name])
 }
 
 func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetComparison) {
@@ -138,7 +138,8 @@ func (m *Model) Tables() {
 	fmt.Println("\nimages:")
 	m.ImagesTable()
 
-	for kind, resources := range m.Pods {
+	for _, kind := range slice.Sort(maps.Keys(m.Pods)) {
+		resources := m.Pods[kind]
 		fmt.Printf("\nkind: %s\n", kind)
 		m.PodsTable(resources)
 	}
@@ -151,8 +152,9 @@ func (m *Model) SkippedResourcesTable() {
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
 	table.SetHeader([]string{"Kind", "Name"})
-	for kind, names := range m.Skipped {
-		for _, name := range names {
+	for _, kind := range slice.Sort(maps.Keys(m.Skipped)) {
+		names := m.Skipped[kind]
+		for _, name := range slice.Sort(names) {
 			table.Append([]string{kind, name})
 		}
 	}
@@ -167,11 +169,12 @@ func (m *Model) PodsTable(resources map[string]*PodSpec) {
 	table.SetRowLine(true)
 	table.SetAutoMergeCells(true)
 	table.SetHeader([]string{"Resource", "Container", "Secrets", "ConfigMaps", "Init"})
-	for resourceName, podSpec := range resources {
-		for _, container := range podSpec.Containers {
-			initString := "init"
+	for _, resourceName := range slice.Sort(maps.Keys(resources)) {
+		podSpec := resources[resourceName]
+		for _, container := range slice.SortOn(func(c *Container) string { return c.Name }, podSpec.Containers) {
+			initString := "Y"
 			if !container.IsInit {
-				initString = ""
+				initString = "N"
 			}
 			table.Append([]string{resourceName, container.Name, strings.Join(container.SecretsSlice(), "\n"), strings.Join(container.ConfigMapsSlice(), "\n"), initString})
 		}
