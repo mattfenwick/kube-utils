@@ -2,7 +2,7 @@ package json_traversal
 
 import (
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 )
 

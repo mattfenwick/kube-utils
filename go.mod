@@ -1,4 +1,4 @@
-module github.com/mattfenwick/kube-utils/go
+module github.com/mattfenwick/kube-utils
 
 go 1.19
 

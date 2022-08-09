@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/json"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/spf13/cobra"
 )
 

@@ -1,7 +1,7 @@
 package json_traversal
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"

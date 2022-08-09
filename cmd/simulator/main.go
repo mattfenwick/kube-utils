@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/mattfenwick/kube-utils/go/pkg/simulator"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/simulator"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

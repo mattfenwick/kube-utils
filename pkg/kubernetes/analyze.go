@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	goyaml "gopkg.in/yaml.v3"

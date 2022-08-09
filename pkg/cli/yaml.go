@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/kubernetes"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/kubernetes"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/spf13/cobra"
 )
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mattfenwick/kube-utils/go/pkg/cli"
+	"github.com/mattfenwick/kube-utils/pkg/cli"
 )
 
 func main() {

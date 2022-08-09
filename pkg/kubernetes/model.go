@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/slice"
-	"github.com/mattfenwick/kube-utils/go/pkg/graph"
+	"github.com/mattfenwick/kube-utils/pkg/graph"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"

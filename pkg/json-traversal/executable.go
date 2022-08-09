@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/mattfenwick/collections/pkg/json"
 	"github.com/mattfenwick/collections/pkg/slice"
-	"github.com/mattfenwick/kube-utils/go/pkg/utils"
+	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
