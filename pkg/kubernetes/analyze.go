@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/mattfenwick/collections/pkg/set"
 	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -70,14 +71,14 @@ func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, sec
 		IsInit:     isInitContainer,
 		Name:       containerSpec.Name,
 		Image:      containerSpec.Image,
-		ConfigMaps: map[string]bool{},
-		Secrets:    map[string]bool{},
+		ConfigMaps: set.FromSlice[string](nil),
+		Secrets:    set.FromSlice[string](nil),
 	}
 	for _, mount := range containerSpec.VolumeMounts {
 		if configMapName, ok := configMaps[mount.Name]; ok {
-			container.ConfigMaps[configMapName] = true
+			container.ConfigMaps.Add(configMapName)
 		} else if secretName, ok := secrets[mount.Name]; ok {
-			container.Secrets[secretName] = true
+			container.Secrets.Add(secretName)
 		}
 	}
 
@@ -85,18 +86,18 @@ func analyzeVolumeMounts(isInitContainer bool, configMaps map[string]string, sec
 		logrus.Debugf("env var? %+v\n", envVar)
 		if envVar.ValueFrom != nil {
 			if envVar.ValueFrom.ConfigMapKeyRef != nil {
-				container.ConfigMaps[envVar.ValueFrom.ConfigMapKeyRef.Name] = true
+				container.ConfigMaps.Add(envVar.ValueFrom.ConfigMapKeyRef.Name)
 			} else if envVar.ValueFrom.SecretKeyRef != nil {
-				container.Secrets[envVar.ValueFrom.SecretKeyRef.Name] = true
+				container.Secrets.Add(envVar.ValueFrom.SecretKeyRef.Name)
 			}
 		}
 	}
 	for _, envFrom := range containerSpec.EnvFrom {
 		logrus.Debugf("env from: %+v\n", envFrom)
 		if envFrom.ConfigMapRef != nil {
-			container.ConfigMaps[envFrom.ConfigMapRef.Name] = true
+			container.ConfigMaps.Add(envFrom.ConfigMapRef.Name)
 		} else if envFrom.SecretRef != nil {
-			container.Secrets[envFrom.SecretRef.Name] = true
+			container.Secrets.Add(envFrom.SecretRef.Name)
 		}
 	}
 

@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/set"
 	"github.com/mattfenwick/collections/pkg/slice"
 	"github.com/mattfenwick/kube-utils/pkg/graph"
 	"github.com/olekukonko/tablewriter"
@@ -13,17 +14,17 @@ import (
 type Container struct {
 	IsInit     bool
 	Name       string
-	ConfigMaps map[string]bool
-	Secrets    map[string]bool
+	ConfigMaps *set.Set[string]
+	Secrets    *set.Set[string]
 	Image      string
 }
 
 func (c *Container) SecretsSlice() []string {
-	return slice.Sort(maps.Keys(c.Secrets))
+	return slice.Sort(c.Secrets.ToSlice())
 }
 
 func (c *Container) ConfigMapsSlice() []string {
-	return slice.Sort(maps.Keys(c.ConfigMaps))
+	return slice.Sort(c.ConfigMaps.ToSlice())
 }
 
 type PodSpec struct {
@@ -69,11 +70,11 @@ func (m *Model) SecretConfigMapsUsages() (map[string][]string, map[string][]stri
 	for kind, podSpecs := range m.Pods {
 		for resourceName, podSpec := range podSpecs {
 			for _, container := range podSpec.Containers {
-				for usedSecret := range container.Secrets {
+				for _, usedSecret := range container.Secrets.ToSlice() {
 					logrus.Debugf("usage of secret %s by %s/%s/%s", usedSecret, kind, resourceName, container.Name)
 					usedSecrets[usedSecret] = append(usedSecrets[usedSecret], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
 				}
-				for usedConfigMap := range container.ConfigMaps {
+				for _, usedConfigMap := range container.ConfigMaps.ToSlice() {
 					logrus.Debugf("usage of configmap %s by %s/%s/%s", usedConfigMap, kind, resourceName, container.Name)
 					usedConfigMaps[usedConfigMap] = append(usedConfigMaps[usedConfigMap], fmt.Sprintf("%s/%s: %s", kind, resourceName, container.Name))
 				}
@@ -94,30 +95,21 @@ func (m *Model) ConfigMapUsages(name string) []string {
 }
 
 func (m *Model) GetUsedUnusedSecretsAndConfigMaps() (*KeySetComparison, *KeySetComparison) {
-	createdSecrets := map[string]bool{}
-	for _, s := range m.Secrets {
-		createdSecrets[s] = true
-	}
-	createdConfigMaps := map[string]bool{}
-	for _, cm := range m.ConfigMaps {
-		createdConfigMaps[cm] = true
-	}
-
-	usedSecrets := map[string]bool{}
-	usedConfigMaps := map[string]bool{}
+	usedSecrets := set.FromSlice[string](nil)
+	usedConfigMaps := set.FromSlice[string](nil)
 	for _, podSpecs := range m.Pods {
 		for _, podSpec := range podSpecs {
 			for _, container := range podSpec.Containers {
-				for usedSecret := range container.Secrets {
-					usedSecrets[usedSecret] = true
+				for _, usedSecret := range container.Secrets.ToSlice() {
+					usedSecrets.Add(usedSecret)
 				}
-				for usedConfigMap := range container.ConfigMaps {
-					usedConfigMaps[usedConfigMap] = true
+				for _, usedConfigMap := range container.ConfigMaps.ToSlice() {
+					usedConfigMaps.Add(usedConfigMap)
 				}
 			}
 		}
 	}
-	return CompareKeySets(createdSecrets, usedSecrets), CompareKeySets(createdConfigMaps, usedConfigMaps)
+	return CompareKeySets(set.FromSlice(m.Secrets), usedSecrets), CompareKeySets(set.FromSlice(m.ConfigMaps), usedConfigMaps)
 }
 
 func (m *Model) GetImageUsages() map[string][]string {
@@ -197,13 +189,13 @@ func (m *Model) SecretsTable() {
 	table.SetHeader([]string{"Name", "Source", "Usages"})
 
 	secretsComparison, _ := m.GetUsedUnusedSecretsAndConfigMaps()
-	for secret := range secretsComparison.JustA {
+	for _, secret := range secretsComparison.JustA {
 		table.Append([]string{secret, "chart", "(none)"})
 	}
-	for secret := range secretsComparison.Both {
+	for _, secret := range secretsComparison.Both {
 		table.Append([]string{secret, "chart", strings.Join(m.SecretUsages(secret), "\n")})
 	}
-	for secret := range secretsComparison.JustB {
+	for _, secret := range secretsComparison.JustB {
 		table.Append([]string{secret, "unknown", strings.Join(m.SecretUsages(secret), "\n")})
 	}
 	table.Render()
@@ -219,13 +211,13 @@ func (m *Model) ConfigMapsTable() {
 	table.SetHeader([]string{"Name", "Source", "Usages"})
 
 	_, configMapsComparison := m.GetUsedUnusedSecretsAndConfigMaps()
-	for configMap := range configMapsComparison.JustA {
+	for _, configMap := range configMapsComparison.JustA {
 		table.Append([]string{configMap, "chart", "(none)"})
 	}
-	for configMap := range configMapsComparison.Both {
+	for _, configMap := range configMapsComparison.Both {
 		table.Append([]string{configMap, "chart", strings.Join(m.ConfigMapUsages(configMap), "\n")})
 	}
-	for configMap := range configMapsComparison.JustB {
+	for _, configMap := range configMapsComparison.JustB {
 		table.Append([]string{configMap, "unknown", strings.Join(m.ConfigMapUsages(configMap), "\n")})
 	}
 	table.Render()
@@ -258,13 +250,13 @@ func (m *Model) Graph() *graph.Graph {
 	secretsGraph := graph.NewGraph("secrets", "secrets")
 	unusedSecretsGraph := graph.NewGraph("unused secrets", "unused secrets")
 	unknownSourceSecretsGraph := graph.NewGraph("unknown source secrets", "unknown source secrets")
-	for secret := range secretsComparison.JustA {
+	for _, secret := range secretsComparison.JustA {
 		unusedSecretsGraph.AddNode("secret: "+secret, fmt.Sprintf(`label="%s"`, secret))
 	}
-	for secret := range secretsComparison.Both {
+	for _, secret := range secretsComparison.Both {
 		secretsGraph.AddNode("secret: "+secret, fmt.Sprintf(`label="%s"`, secret))
 	}
-	for secret := range secretsComparison.JustB {
+	for _, secret := range secretsComparison.JustB {
 		unknownSourceSecretsGraph.AddNode("secret: "+secret, fmt.Sprintf(`label="%s"`, secret))
 	}
 	yamlGraph.AddSubgraph(secretsGraph)
@@ -274,13 +266,13 @@ func (m *Model) Graph() *graph.Graph {
 	cmsGraph := graph.NewGraph("configmaps", "configmaps")
 	unusedConfigMapsGraph := graph.NewGraph("unused configmaps", "unused configmaps")
 	unknownSourceConfigMapsGraph := graph.NewGraph("unknown source configmaps", "unknown source configmaps")
-	for secret := range configMapsComparison.JustA {
+	for _, secret := range configMapsComparison.JustA {
 		unusedConfigMapsGraph.AddNode("configmap: "+secret, fmt.Sprintf(`label="%s"`, secret))
 	}
-	for secret := range configMapsComparison.Both {
+	for _, secret := range configMapsComparison.Both {
 		cmsGraph.AddNode("configmap: "+secret, fmt.Sprintf(`label="%s"`, secret))
 	}
-	for secret := range configMapsComparison.JustB {
+	for _, secret := range configMapsComparison.JustB {
 		unknownSourceConfigMapsGraph.AddNode("configmap: "+secret, fmt.Sprintf(`label="%s"`, secret))
 	}
 	yamlGraph.AddSubgraph(cmsGraph)
@@ -302,10 +294,10 @@ func (m *Model) Graph() *graph.Graph {
 				containerNodeName := fmt.Sprintf("%s: %s/%s%s", kind, name, container.Name, initPiece)
 				yamlGraph.AddNode(containerNodeName, fmt.Sprintf(`label="%s%s"`, container.Name, initPiece))
 				yamlGraph.AddEdge(resourceName, containerNodeName)
-				for cm := range container.ConfigMaps {
+				for _, cm := range container.ConfigMaps.ToSlice() {
 					yamlGraph.AddEdge(containerNodeName, "configmap: "+cm)
 				}
-				for secret := range container.Secrets {
+				for _, secret := range container.Secrets.ToSlice() {
 					yamlGraph.AddEdge(containerNodeName, "secret: "+secret)
 				}
 			}

@@ -1,31 +1,27 @@
-package kubernetes
+package vanilla
 
 import (
-	"bytes"
 	"fmt"
+	"github.com/mattfenwick/collections/pkg/set"
+	"github.com/mattfenwick/kube-utils/pkg/kubernetes"
 	"github.com/mattfenwick/kube-utils/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-	"io"
 	"io/ioutil"
 )
 
 var (
-	ClusterScopedResources = map[string]bool{}
+	ClusterScopedResources = set.FromSlice([]string{"ClusterRole", "ClusterRoleBinding", "CustomResourceDefinition"})
 )
 
-func init() {
-	ClusterScopedResources["ClusterRole"] = true
-	ClusterScopedResources["ClusterRoleBinding"] = true
-	ClusterScopedResources["CustomResourceDefinition"] = true
-}
-
+// Run
+//
+//	TODO why is this file here?  it doesn't seem to be used?
 func Run(path string) {
 	data, err := ioutil.ReadFile(path)
 	utils.DoOrDie(errors.Wrapf(err, "unable to read file"))
 
-	values, err := ParseMany(data)
+	values, err := kubernetes.ParseMany(data)
 	for _, v := range values {
 		fmt.Printf("found value: %+v\n\n", v)
 	}
@@ -34,9 +30,9 @@ func Run(path string) {
 	resources, err := ParseResources(values)
 	utils.DoOrDie(err)
 
-	for kind, resources := range resources.ClusterScoped {
+	for kind, clusterResource := range resources.ClusterScoped {
 		fmt.Printf("cluster-scoped %s:\n", kind)
-		for name := range resources {
+		for name := range clusterResource {
 			fmt.Printf("  %s\n", name)
 		}
 	}
@@ -51,33 +47,6 @@ func Run(path string) {
 			}
 		}
 	}
-}
-
-func ParseManyFromFile(path string) ([]interface{}, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read file %s", path)
-	}
-
-	return ParseMany(data)
-}
-
-func ParseMany(data []byte) ([]interface{}, error) {
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
-
-	var out []interface{}
-	for {
-		var next interface{}
-		err := decoder.Decode(&next)
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return out, errors.Wrapf(err, "unable to decode")
-		}
-		out = append(out, next)
-	}
-
-	return out, nil
 }
 
 type KubeResources struct {
@@ -128,7 +97,7 @@ func NewNode(kind string, namespace string, name string) *Node {
 		Name:       name,
 		References: nil,
 	}
-	if _, ok := ClusterScopedResources[kind]; !ok {
+	if ClusterScopedResources.Contains(kind) {
 		node.Namespace = &namespace
 	}
 	return node

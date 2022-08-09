@@ -1,34 +1,20 @@
 package kubernetes
 
+import (
+	"github.com/mattfenwick/collections/pkg/set"
+	"github.com/mattfenwick/collections/pkg/slice"
+)
+
 type KeySetComparison struct {
-	JustA map[string]bool
-	Both  map[string]bool
-	JustB map[string]bool
+	JustA []string
+	Both  []string
+	JustB []string
 }
 
-func CompareKeySets(a map[string]bool, b map[string]bool) *KeySetComparison {
-	justA := map[string]bool{}
-	both := map[string]bool{}
-	justB := map[string]bool{}
-
-	for key := range a {
-		if _, ok := b[key]; ok {
-			both[key] = true
-		} else {
-			justA[key] = true
-		}
-	}
-	for key := range b {
-		if _, ok := a[key]; ok {
-			// nothing to do: in both
-		} else {
-			justB[key] = true
-		}
-	}
-
+func CompareKeySets(a *set.Set[string], b *set.Set[string]) *KeySetComparison {
 	return &KeySetComparison{
-		JustA: justA,
-		Both:  both,
-		JustB: justB,
+		JustA: slice.Sort(a.Difference(b).ToSlice()),
+		Both:  slice.Sort(a.Intersect(b).ToSlice()),
+		JustB: slice.Sort(b.Difference(a).ToSlice()),
 	}
 }

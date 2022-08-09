@@ -21,9 +21,6 @@ require (
 	sigs.k8s.io/yaml v1.2.0
 )
 
-//github.com/olekukonko/tablewriter v0.0.4
-//k8s.io/api v0.22.4
-//k8s.io/apimachinery v0.22.4
 //k8s.io/client-go v0.22.4
 
 require (
